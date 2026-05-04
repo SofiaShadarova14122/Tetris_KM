@@ -14,7 +14,6 @@ class GameOverState(GameState):
 
     def on_key_press(self, key, modifiers):
         from .menu_pause_settings import MenuState
-        # Получить текущий объект музыки из окна
         window = arcade.get_window()
-        music = getattr(window, 'music', None)
+        music = getattr(window, 'music_controller', None)
         return MenuState(music)

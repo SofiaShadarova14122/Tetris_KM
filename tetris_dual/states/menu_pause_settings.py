@@ -3,6 +3,22 @@ from .base_state import GameState
 from ..ui.theme import TEXT_COLOR
 from ..sounds import is_sounds_enabled, set_sounds_enabled
 
+# ------------------------------------------------------------
+class MusicController:
+    """Простой контроллер громкости для музыки."""
+    def __init__(self, sound):
+        self.sound = sound
+        self._volume = 0.7
+    @property
+    def volume(self):
+        return self._volume
+    @volume.setter
+    def volume(self, value):
+        self._volume = max(0.0, min(1.0, value))
+        if self.sound:
+            self.sound.volume = self._volume
+# ------------------------------------------------------------
+
 class MenuState(GameState):
     def __init__(self, music_player):
         self.music_player = music_player
@@ -24,6 +40,7 @@ class MenuState(GameState):
             return SettingsState(self.music_player, return_state=self)
         return self
 
+# ------------------------------------------------------------
 class PauseState(GameState):
     def __init__(self, gameplay_state, music_player):
         self.gameplay_state = gameplay_state
@@ -31,10 +48,8 @@ class PauseState(GameState):
 
     def on_draw(self, window):
         self.gameplay_state.on_draw(window)
-        # Затемнение
-        arcade.draw_rectangle_filled(window.width//2, window.height//2,
-                                     window.width, window.height,
-                                     (0,0,0,180))
+        arcade.draw_lrbt_rectangle_filled(0, window.width, 0, window.height,
+                                          (0,0,0,180))
         arcade.draw_text("ПАУЗА", window.width//2, window.height//2+60,
                          TEXT_COLOR, 48, anchor_x="center")
         arcade.draw_text("ПРОБЕЛ или P - продолжить", window.width//2, window.height//2,
@@ -56,24 +71,22 @@ class PauseState(GameState):
     def on_update(self, delta_time):
         return self
 
+# ------------------------------------------------------------
 class SettingsState(GameState):
     def __init__(self, music_player, return_state):
         self.music_player = music_player
         self.return_state = return_state
         self.music_volume = music_player.volume if music_player else 0.7
         self.sounds_enabled = is_sounds_enabled()
-        # Позиция ползунка для мыши
         self.dragging = False
 
     def on_draw(self, window):
-        # Фон
-        arcade.draw_rectangle_filled(window.width//2, window.height//2,
-                                     window.width, window.height,
-                                     (40,40,50))
+        arcade.draw_lrbt_rectangle_filled(0, window.width, 0, window.height,
+                                          (40,40,50,255))
         arcade.draw_text("НАСТРОЙКИ", window.width//2, window.height//2+150,
                          TEXT_COLOR, 32, anchor_x="center")
 
-        # Ползунок громкости музыки
+        # Ползунок громкости
         arcade.draw_text("Громкость музыки", window.width//2-150, window.height//2+40,
                          TEXT_COLOR, 18)
         slider_left = window.width//2 - 100
@@ -94,10 +107,14 @@ class SettingsState(GameState):
         toggle_y = window.height//2 - 40
         if self.sounds_enabled:
             arcade.draw_text("ВКЛ", toggle_x, toggle_y, (100,255,100), 20, anchor_x="center")
-            arcade.draw_rectangle_filled(toggle_x+40, toggle_y, 30, 20, (100,255,100))
+            arcade.draw_lrbt_rectangle_filled(toggle_x+25, toggle_x+55,
+                                              toggle_y-10, toggle_y+10,
+                                              (100,255,100))
         else:
             arcade.draw_text("ВЫКЛ", toggle_x, toggle_y, (255,100,100), 20, anchor_x="center")
-            arcade.draw_rectangle_filled(toggle_x+40, toggle_y, 30, 20, (100,100,100))
+            arcade.draw_lrbt_rectangle_filled(toggle_x+25, toggle_x+55,
+                                              toggle_y-10, toggle_y+10,
+                                              (100,100,100))
 
         arcade.draw_text("ESC - назад", window.width//2, 50,
                          TEXT_COLOR, 16, anchor_x="center")
@@ -115,11 +132,9 @@ class SettingsState(GameState):
         slider_left = window.width//2 - 100
         slider_right = window.width//2 + 100
         slider_y = window.height//2
-        # Ползунок
         if slider_left <= x <= slider_right and slider_y-10 <= y <= slider_y+10:
             self.dragging = True
             self._set_volume_from_x(x)
-        # Переключатель звуков
         toggle_x = window.width//2 - 50
         toggle_y = window.height//2 - 40
         if toggle_x-30 <= x <= toggle_x+30 and toggle_y-15 <= y <= toggle_y+15:
@@ -128,10 +143,12 @@ class SettingsState(GameState):
 
     def on_mouse_release(self, x, y, button, modifiers):
         self.dragging = False
+        return self
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         if self.dragging:
             self._set_volume_from_x(x)
+        return self
 
     def _set_volume_from_x(self, x):
         window = arcade.get_window()

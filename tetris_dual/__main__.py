@@ -1,19 +1,22 @@
 import arcade
 import os
-from .states.menu_pause_settings import MenuState
+from .states.menu_pause_settings import MenuState, MusicController
 from .config import SCREEN_WIDTH, SCREEN_HEIGHT, TITLE, MUSIC_VOLUME, MUSIC_PATH
 
 class TetrisGame(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, TITLE)
         arcade.set_background_color((20,20,30))
-        self.music = None
+        self.music_sound = None
         if os.path.exists(MUSIC_PATH):
-            self.music = arcade.Sound(MUSIC_PATH, streaming=True)
-            self.music.play(volume=MUSIC_VOLUME, loop=True)
+            self.music_sound = arcade.Sound(MUSIC_PATH, streaming=True)
+            self.music_sound.play(volume=MUSIC_VOLUME, loop=True)
         else:
             print(f"Файл {MUSIC_PATH} не найден")
-        self.current_state = MenuState(self.music)
+        # Обёртка для управления громкостью
+        self.music_controller = MusicController(self.music_sound)
+        self.music_controller.volume = MUSIC_VOLUME
+        self.current_state = MenuState(self.music_controller)
 
     def on_draw(self):
         self.current_state.on_draw(self)
