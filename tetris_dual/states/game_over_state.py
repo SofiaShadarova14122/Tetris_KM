@@ -13,5 +13,8 @@ class GameOverState(GameState):
         draw_game_over(self.winner, self.score1, self.score2, window.width, window.height)
 
     def on_key_press(self, key, modifiers):
-        from .menu_state import MenuState
-        return MenuState()
+        from .menu_pause_settings import MenuState
+        # Получить текущий объект музыки из окна
+        window = arcade.get_window()
+        music = getattr(window, 'music', None)
+        return MenuState(music)
