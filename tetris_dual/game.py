@@ -3,7 +3,6 @@ import arcade
 import os
 from .arena import Arena
 from .player import Player
-from .pieces import get_random_piece
 
 class TetrisGame:
     def __init__(self, x, y):
@@ -32,17 +31,17 @@ class TetrisGame:
 
         # Звуки
         self.sounds = {}
-        for name, path in [('drop', 'assets/sounds/drop.wav'),
-                           ('rotate', 'assets/sounds/rotate.wav'),
-                           ('line_clear', 'assets/sounds/line_clear.wav')]:
+        sound_files = {
+            'drop': 'assets/sounds/drop.wav',
+            'rotate': 'assets/sounds/rotate.wav',
+            'line_clear': 'assets/sounds/line_clear.wav'
+        }
+        for name, path in sound_files.items():
             if os.path.exists(path):
                 try:
                     self.sounds[name] = arcade.load_sound(path)
                 except:
                     pass
-
-        # Следующая фигура
-        self.next_piece = get_random_piece()
 
     def play_sound(self, name):
         if name in self.sounds:
@@ -103,17 +102,18 @@ class TetrisGame:
                             )
 
     def draw_preview(self, x, y):
-        """Рисует превью следующей фигуры."""
+        """Правильное превью следующей фигуры."""
         arcade.draw_text("Следующая:", x, y + 60, (40, 40, 40), 14)
-        for y_off, row in enumerate(self.next_piece):
+        next_piece = self.player.next_piece
+        for y_off, row in enumerate(next_piece):
             for x_off, val in enumerate(row):
                 if val != 0:
                     color = self.colors[val]
                     arcade.draw_lrbt_rectangle_filled(
                         x + x_off * 20 + 1,
                         x + (x_off + 1) * 20 - 1,
-                        y + (len(self.next_piece) - 1 - y_off) * 20 + 1,
-                        y + (len(self.next_piece) - y_off) * 20 - 1,
+                        y + (len(next_piece) - 1 - y_off) * 20 + 1,
+                        y + (len(next_piece) - y_off) * 20 - 1,
                         color
                     )
 

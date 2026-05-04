@@ -1,4 +1,4 @@
-# tetris_dual/main.py
+# main.py
 import arcade
 import os
 from .menu import MenuState
@@ -31,7 +31,6 @@ class GameOverState:
     def on_key_press(self):
         return "menu"
 
-
 class TetrisApp(arcade.Window):
     def __init__(self):
         width, height = 960, 760
@@ -39,11 +38,10 @@ class TetrisApp(arcade.Window):
         self.center_window()
         arcade.set_background_color((241, 241, 241))
 
-        self.state = "menu"  # "menu", "game", "game_over"
+        self.state = "menu"
         self.menu = MenuState(self.width, self.height)
         self.game_over_screen = None
 
-        # Позиции полей
         field_width = 10 * 32
         field_height = 20 * 32
         center_x = self.width // 2
@@ -87,17 +85,12 @@ class TetrisApp(arcade.Window):
             self.game2.draw()
             self.game1.draw_preview(self.x1 - 120, self.y + 50)
             self.game2.draw_preview(self.x2 + self.game2.width + 20, self.y + 50)
-            # Счёт НАД полями
-            arcade.draw_text(
-                f"Игрок 1: {self.game1.get_score()}",
-                self.x1 + self.game1.width // 2, self.y + self.game1.height + 10,
-                (40, 40, 40), 16, anchor_x="center"
-            )
-            arcade.draw_text(
-                f"Игрок 2: {self.game2.get_score()}",
-                self.x2 + self.game2.width // 2, self.y + self.game2.height + 10,
-                (40, 40, 40), 16, anchor_x="center"
-            )
+            arcade.draw_text(f"Игрок 1: {self.game1.get_score()}",
+                             self.x1 + self.game1.width // 2, self.y + self.game1.height + 10,
+                             (40, 40, 40), 16, anchor_x="center")
+            arcade.draw_text(f"Игрок 2: {self.game2.get_score()}",
+                             self.x2 + self.game2.width // 2, self.y + self.game2.height + 10,
+                             (40, 40, 40), 16, anchor_x="center")
             if self.paused:
                 arcade.draw_lrbt_rectangle_filled(0, self.width, 0, self.height, (0, 0, 0, 180))
                 arcade.draw_text("ПАУЗА", self.width // 2, self.height // 2,
@@ -127,14 +120,11 @@ class TetrisApp(arcade.Window):
         if self.state == "game_over":
             self.state = "menu"
             return
-
         if self.state != "game":
             return
-
         if key == arcade.key.P:
             self.paused = not self.paused
             return
-
         if self.paused:
             return
 
@@ -168,11 +158,9 @@ class TetrisApp(arcade.Window):
             self.key_states['p2_drop'] = False
             self.game2.handle_input('drop', is_key_down=False)
 
-
 def main():
     app = TetrisApp()
     arcade.run()
-
 
 if __name__ == "__main__":
     main()
