@@ -1,13 +1,13 @@
-# main.py
+# TETRIS_KM/games/СyberСubes/main.py
 import arcade
 import os
-from .menu import MenuState
 from .game import TetrisGame
 
 class GameOverState:
     def __init__(self, score1, score2):
         self.score1 = score1
         self.score2 = score2
+
 
     def on_draw(self, width, height):
         arcade.draw_lrbt_rectangle_filled(0, width, 0, height, (241, 241, 241))
@@ -33,20 +33,20 @@ class GameOverState:
 
 class TetrisApp(arcade.Window):
     def __init__(self):
-        width, height = 960, 760
-        super().__init__(width, height, "Парный Тетрис с КиберМишками")
+        width, height = 1040, 760
+        super().__init__(width, height, "Мишуткины Кубики")
         self.center_window()
         arcade.set_background_color((241, 241, 241))
 
-        self.state = "menu"
-        self.menu = MenuState(self.width, self.height)
+        # УБРАНО внутреннее меню — игра начинается сразу
+        self.state = "game"
         self.game_over_screen = None
 
         field_width = 10 * 32
         field_height = 20 * 32
         center_x = self.width // 2
-        self.x1 = center_x - field_width - 60
-        self.x2 = center_x + 60
+        self.x1 = center_x - field_width - 80   # Левое поле
+        self.x2 = center_x + 80                 # Правое поле
         self.y = (self.height - field_height) // 2
 
         self.game1 = None
@@ -54,9 +54,9 @@ class TetrisApp(arcade.Window):
         self.paused = False
         self.key_states = {'p1_drop': False, 'p2_drop': False}
 
-        # Музыка
+        # Музыка запускается сразу при старте игры
         self.music = None
-        music_path = "assets/music/tetris_theme.mp3"
+        music_path = "assets/music/Cubes_theme.mp3"
         if os.path.exists(music_path):
             try:
                 self.music = arcade.Sound(music_path, streaming=True)
@@ -64,27 +64,23 @@ class TetrisApp(arcade.Window):
             except Exception as e:
                 print(f"Не удалось загрузить музыку: {e}")
 
+        # Сразу создаём игры
+        self.game1 = TetrisGame(self.x1, self.y)
+        self.game2 = TetrisGame(self.x2, self.y)
+
     def center_window(self):
         screen_width, screen_height = arcade.get_display_size()
         window_x = (screen_width - self.width) // 2
         window_y = (screen_height - self.height) // 2
         self.set_location(window_x, window_y)
 
-    def start_game(self):
-        self.game1 = TetrisGame(self.x1, self.y)
-        self.game2 = TetrisGame(self.x2, self.y)
-        self.state = "game"
-        self.paused = False
-
     def on_draw(self):
         self.clear()
-        if self.state == "menu":
-            self.menu.on_draw()
-        elif self.state == "game":
+        if self.state == "game":
             self.game1.draw()
             self.game2.draw()
-            self.game1.draw_preview(self.x1 - 120, self.y + 50)
-            self.game2.draw_preview(self.x2 + self.game2.width + 20, self.y + 50)
+            self.game1.draw_preview(self.x1 - 130 + 20, self.y + 40)
+            self.game2.draw_preview_with_offset(self.x2 + self.game2.width + 30, self.y + 40, text_offset=-20)
             arcade.draw_text(f"Игрок 1: {self.game1.get_score()}",
                              self.x1 + self.game1.width // 2, self.y + self.game1.height + 10,
                              (40, 40, 40), 16, anchor_x="center")
@@ -101,26 +97,20 @@ class TetrisApp(arcade.Window):
             self.game_over_screen.on_draw(self.width, self.height)
 
     def on_update(self, delta_time):
-        if self.state == "game":
-            self.game1.update(delta_time)
-            self.game2.update(delta_time)
-            if self.game1.is_game_over() and self.game2.is_game_over():
-                self.game_over_screen = GameOverState(
-                    self.game1.get_score(),
-                    self.game2.get_score()
-                )
-                self.state = "game_over"
-
-    def on_mouse_press(self, x, y, button, modifiers):
-        if self.state == "menu":
-            if self.menu.on_mouse_press(x, y):
-                self.start_game()
+        if self.state != "game" or self.paused:
+            return
+        self.game1.update(delta_time)
+        self.game2.update(delta_time)
+        if self.game1.is_game_over() and self.game2.is_game_over():
+            self.game_over_screen = GameOverState(
+                self.game1.get_score(),
+                self.game2.get_score()
+            )
+            self.state = "game_over"
 
     def on_key_press(self, key, modifiers):
         if self.state == "game_over":
-            self.state = "menu"
-            return
-        if self.state != "game":
+            arcade.close_window()
             return
         if key == arcade.key.P:
             self.paused = not self.paused
@@ -128,39 +118,36 @@ class TetrisApp(arcade.Window):
         if self.paused:
             return
 
-        # Игрок 1: стрелки
-        if key == arcade.key.LEFT:
+        # Игрок 1 (ЛЕВОЕ поле): WASD
+        if key == arcade.key.A:
             self.game1.handle_input('left')
-        elif key == arcade.key.RIGHT:
+        elif key == arcade.key.D:
             self.game1.handle_input('right')
-        elif key == arcade.key.UP:
+        elif key == arcade.key.W:
             self.game1.handle_input('rotate')
-        elif key == arcade.key.DOWN:
+        elif key == arcade.key.S:
             self.key_states['p1_drop'] = True
             self.game1.handle_input('drop', is_key_down=True)
 
-        # Игрок 2: WASD
-        if key == arcade.key.A:
+        # Игрок 2 (ПРАВОЕ поле): стрелки
+        if key == arcade.key.LEFT:
             self.game2.handle_input('left')
-        elif key == arcade.key.D:
+        elif key == arcade.key.RIGHT:
             self.game2.handle_input('right')
-        elif key == arcade.key.W:
+        elif key == arcade.key.UP:
             self.game2.handle_input('rotate')
-        elif key == arcade.key.S:
+        elif key == arcade.key.DOWN:
             self.key_states['p2_drop'] = True
             self.game2.handle_input('drop', is_key_down=True)
 
     def on_key_release(self, key, modifiers):
-        if key == arcade.key.DOWN:
+        if key == arcade.key.S:
             self.key_states['p1_drop'] = False
             self.game1.handle_input('drop', is_key_down=False)
-        elif key == arcade.key.S:
+        elif key == arcade.key.DOWN:
             self.key_states['p2_drop'] = False
             self.game2.handle_input('drop', is_key_down=False)
 
 def main():
     app = TetrisApp()
     arcade.run()
-
-if __name__ == "__main__":
-    main()

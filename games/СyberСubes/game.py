@@ -17,19 +17,17 @@ class TetrisGame:
         self.arena = Arena(self.arena_width, self.arena_height)
         self.player = Player(self.arena)
 
-        # Цвета в стиле КиберМедведей
         self.colors = [
             (0, 0, 0),
-            (255, 100, 100),   # T
-            (100, 200, 255),   # O
-            (100, 255, 150),   # L
-            (200, 100, 255),   # J
-            (255, 200, 100),   # I
-            (255, 150, 100),   # S
-            (150, 150, 255),   # Z
+            (255, 100, 100),
+            (100, 200, 255),
+            (100, 255, 150),
+            (200, 100, 255),
+            (255, 200, 100),
+            (255, 150, 100),
+            (150, 150, 255),
         ]
 
-        # Звуки
         self.sounds = {}
         sound_files = {
             'drop': 'assets/sounds/drop.wav',
@@ -48,19 +46,16 @@ class TetrisGame:
             arcade.play_sound(self.sounds[name])
 
     def draw(self):
-        # Белый фон под полем
         arcade.draw_lrbt_rectangle_filled(
             self.x - 5, self.x + self.width + 5,
             self.y - 5, self.y + self.height + 5,
             (255, 255, 255)
         )
-        # Граница
         arcade.draw_lrbt_rectangle_outline(
             self.x, self.x + self.width,
             self.y, self.y + self.height,
             (100, 100, 100), 2
         )
-        # Сетка
         for i in range(self.arena_width + 1):
             arcade.draw_line(self.x + i * self.cell_size, self.y,
                              self.x + i * self.cell_size, self.y + self.height,
@@ -70,7 +65,6 @@ class TetrisGame:
                              self.x + self.width, self.y + i * self.cell_size,
                              (220, 220, 220), 1)
 
-        # Поле
         for y in range(self.arena_height):
             for x in range(self.arena_width):
                 val = self.arena.matrix[y][x]
@@ -84,7 +78,6 @@ class TetrisGame:
                         color
                     )
 
-        # Текущая фигура
         if self.player.matrix and not self.player.game_over:
             for y, row in enumerate(self.player.matrix):
                 for x, val in enumerate(row):
@@ -102,9 +95,10 @@ class TetrisGame:
                             )
 
     def draw_preview(self, x, y):
-        """Правильное превью следующей фигуры."""
-        arcade.draw_text("Следующая:", x, y + 60, (40, 40, 40), 14)
+        """Стандартное превью (для левого игрока)."""
+        arcade.draw_text("Следующая:", x, y + 70, (40, 40, 40), 14)
         next_piece = self.player.next_piece
+        preview_y = y
         for y_off, row in enumerate(next_piece):
             for x_off, val in enumerate(row):
                 if val != 0:
@@ -112,8 +106,25 @@ class TetrisGame:
                     arcade.draw_lrbt_rectangle_filled(
                         x + x_off * 20 + 1,
                         x + (x_off + 1) * 20 - 1,
-                        y + (len(next_piece) - 1 - y_off) * 20 + 1,
-                        y + (len(next_piece) - y_off) * 20 - 1,
+                        preview_y + (len(next_piece) - 1 - y_off) * 20 + 1,
+                        preview_y + (len(next_piece) - y_off) * 20 - 1,
+                        color
+                    )
+
+    def draw_preview_with_offset(self, x, y, text_offset=0):
+        """Превью с отдельным сдвигом текста (для правого игрока)."""
+        arcade.draw_text("Следующая:", x + text_offset, y + 70, (40, 40, 40), 14)
+        next_piece = self.player.next_piece
+        preview_y = y  # ← фигура остаётся на месте!
+        for y_off, row in enumerate(next_piece):
+            for x_off, val in enumerate(row):
+                if val != 0:
+                    color = self.colors[val]
+                    arcade.draw_lrbt_rectangle_filled(
+                        x + x_off * 20 + 1,
+                        x + (x_off + 1) * 20 - 1,
+                        preview_y + (len(next_piece) - 1 - y_off) * 20 + 1,
+                        preview_y + (len(next_piece) - y_off) * 20 - 1,
                         color
                     )
 

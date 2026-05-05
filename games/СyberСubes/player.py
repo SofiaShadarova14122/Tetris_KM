@@ -1,12 +1,11 @@
-# player.py
+# Tetris_KM/games/СyberСubes/player.py
 from .pieces import get_random_piece
 
 class Player:
     def __init__(self, arena):
         self.arena = arena
-        self.DROP_SLOW = 1.0
-        self.DROP_FAST = 0.05
-        self.normal_drop_interval = self.DROP_SLOW
+        self.DROP_FAST = 0.05          # ← ВОССТАНОВЛЕНО
+        self.normal_drop_interval = 1.0  # ← ВОССТАНОВЛЕНО
         self.drop_interval = self.normal_drop_interval
         self.drop_counter = 0.0
         self.pos = {'x': 0, 'y': 0}
@@ -77,12 +76,35 @@ class Player:
         if lines > 0:
             self.lines_cleared += lines
             self.score += lines * 10
-            # Ускорение каждые 5 уровней (50 строк)
-            level = self.lines_cleared // 50
-            speeds = [1.0, 0.8, 0.6, 0.4, 0.3, 0.2, 0.15]
-            self.normal_drop_interval = speeds[min(level, len(speeds)-1)]
+
+            # === КЛАССИЧЕСКАЯ СКОРОСТЬ (Game Boy) ===
+            level = self.lines_cleared // 10
+
+            if level < 8:
+                frames = 48 - level * 5
+            elif level == 8:
+                frames = 11
+            elif level == 9:
+                frames = 10
+            elif level == 10:
+                frames = 9
+            elif level == 11:
+                frames = 8
+            elif level == 12:
+                frames = 7
+            elif level == 13:
+                frames = 6
+            elif level == 14:
+                frames = 5
+            elif level >= 15 and level < 20:
+                frames = 4
+            else:  # level >= 20
+                frames = 3
+
+            self.normal_drop_interval = frames / 60.0  # ← ОБНОВЛЯЕМ НОРМАЛЬНУЮ СКОРОСТЬ
             if self.drop_interval != self.DROP_FAST:
                 self.drop_interval = self.normal_drop_interval
+
         self.reset()
 
     def drop(self):
