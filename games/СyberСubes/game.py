@@ -20,7 +20,7 @@ class TetrisGrid:
         self.piece, self.piece_color, self.px, self.py = None, 1, 0, 0
         self.next_piece, self.next_color = random.choice(SHAPES), random.randint(1, 7)
         self.spawn_piece()
-        self.rotate_pending = False  # Для однократного вращения
+        self.was_rotate_pressed = False
 
     def spawn_piece(self):
         self.piece, self.piece_color = self.next_piece, self.next_color
@@ -49,7 +49,6 @@ class TetrisGrid:
 
     def update(self, dt):
         if self.game_over: return
-        # Непрерывное движение с задержкой
         if self.keys['left']:
             self.move_timer_l += dt
             if self.move_timer_l > 0.15: self.move(-1); self.move_timer_l = 0.06
@@ -86,9 +85,8 @@ class TetrisGrid:
         pass
 
     def draw(self):
-        # Светлый фон поля (исправлено)
         arcade.draw_lrbt_rectangle_filled(self.x - 5, self.x + self.W * self.CELL + 5, self.y - 5,
-                                          self.y + self.H * self.CELL + 5, (255, 255, 255))
+                                          self.y + self.H * self.CELL + 5, (250, 250, 250))
         arcade.draw_lrbt_rectangle_outline(self.x, self.x + self.W * self.CELL, self.y, self.y + self.H * self.CELL,
                                            (100, 100, 100), 2)
         for r in range(self.H + 1): arcade.draw_line(self.x, self.y + r * self.CELL, self.x + self.W * self.CELL,
@@ -134,28 +132,36 @@ class CyberCubesGame:
         self.game_over, self.paused = False, False
 
     def apply_controller_actions(self, actions):
+        # НЕ сбрасываем действия! Мишка сам отправляет 0 при отпускании
         for p, act in actions:
             grid = self.p1 if p == 1 else self.p2
-            if act == 'rotate':
-                grid.rotate()
+            if act is None:
+                # Сброс всех действий (пришел байт 0)
+                grid.keys = {'left': False, 'right': False, 'down': False}
+                grid.was_rotate_pressed = False
+            elif act == 'rotate':
+                if not grid.was_rotate_pressed:
+                    grid.rotate()
+                    grid.was_rotate_pressed = True
             elif act == 'left':
                 grid.keys['left'] = True
             elif act == 'right':
                 grid.keys['right'] = True
             elif act == 'down':
                 grid.keys['down'] = True
+            # up_left и up_right игнорируем в тетрисе
 
     def apply_keyboard_actions(self, actions):
-        # Сбрасываем все перед применением новых
         for g in [self.p1, self.p2]:
             g.keys = {'left': False, 'right': False, 'down': False}
-            g.rotate_pending = False
+            g.was_rotate_pressed = False
 
         for p, act in actions:
             grid = self.p1 if p == 1 else self.p2
-            if act == 'rotate' and not grid.rotate_pending:
-                grid.rotate()
-                grid.rotate_pending = True
+            if act == 'rotate':
+                if not grid.was_rotate_pressed:
+                    grid.rotate()
+                    grid.was_rotate_pressed = True
             elif act in grid.keys:
                 grid.keys[act] = True
 
@@ -166,7 +172,6 @@ class CyberCubesGame:
         if self.p1.game_over and self.p2.game_over: self.game_over = True
 
     def draw(self):
-        # Светлый фон окна (исправлено)
         arcade.set_background_color((245, 245, 250))
         self.p1.draw();
         self.p2.draw()

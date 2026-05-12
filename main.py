@@ -31,10 +31,11 @@ class MainMenu(arcade.Window):
         arcade.set_background_color((241, 241, 241))
         self.bear_client = bear_client
         self.exit_program = False
-        self.show_game_menu = show_game_menu  # Сразу показать меню выбора игры
-        self.input1 = TextInput(250, 350, 300, 40, "Серия мишки 1")
-        self.input2 = TextInput(250, 280, 300, 40, "Серия мишки 2")
+        self.show_game_menu = show_game_menu
+        self.input1 = TextInput(250, 350, 300, 40, "Серия мишки 1 (необязательно)")
+        self.input2 = TextInput(250, 280, 300, 40, "Серия мишки 2 (необязательно)")
         self.start_btn = {'x': 300, 'y': 180, 'w': 200, 'h': 50}
+        self.skip_btn = {'x': 300, 'y': 120, 'w': 200, 'h': 40}  # Кнопка пропуска
         self.state, self.selected_game = "input", None
         self.game_folders = []
         games_path = os.path.join(os.path.dirname(__file__), "games")
@@ -55,11 +56,16 @@ class MainMenu(arcade.Window):
             arcade.draw_text("Игрок 1:", 240, 370, (0,0,0), 16, anchor_x="right", anchor_y="center")
             arcade.draw_text("Игрок 2:", 240, 300, (0,0,0), 16, anchor_x="right", anchor_y="center")
             self.input1.draw(); self.input2.draw()
+            # Кнопка подключения
             arcade.draw_lrbt_rectangle_filled(self.start_btn['x'], self.start_btn['x']+self.start_btn['w'],
                                               self.start_btn['y'], self.start_btn['y']+self.start_btn['h'], (100,200,100))
             arcade.draw_text("Подключить", 400, 205, (255,255,255), 18, anchor_x="center", anchor_y="center")
+            # Кнопка пропуска
+            arcade.draw_lrbt_rectangle_filled(self.skip_btn['x'], self.skip_btn['x']+self.skip_btn['w'],
+                                              self.skip_btn['y'], self.skip_btn['y']+self.skip_btn['h'], (150,150,200))
+            arcade.draw_text("Играть без мишек", 400, 140, (255,255,255), 16, anchor_x="center", anchor_y="center")
         else:
-            # Меню выбора игры (показываем сразу если show_game_menu=True)
+            # Меню выбора игры
             status = self.bear_client.get_status() if self.bear_client else {'bear1':False, 'bear2':False}
             arcade.draw_text("Выберите игру:", 400, 500, (40,40,40), 24, anchor_x="center")
             s1, s2 = "Мишка 1 найден ✅" if status.get('bear1') else "Мишка 1 не найден ❌", "Мишка 2 найден ✅" if status.get('bear2') else "Мишка 2 не найден ❌"
@@ -83,16 +89,17 @@ class MainMenu(arcade.Window):
             if key == arcade.key.TAB: self.input1.active = not self.input1.active; self.input2.active = not self.input2.active
             elif key == arcade.key.BACKSPACE: self.input1.backspace() if self.input1.active else self.input2.backspace()
             elif key == arcade.key.ENTER: self.connect_and_go_menu()
-        elif self.state == "menu" or self.show_game_menu:
-            if key == arcade.key.ENTER and self.selected_game:
-                self.launch_game()
 
     def on_mouse_press(self, x, y, btn, mods):
         if self.state == "input" and not self.show_game_menu:
             self.input1.active = self.input1.x <= x <= self.input1.x+self.input1.width and self.input1.y <= y <= self.input1.y+self.input1.height
             self.input2.active = not self.input1.active and self.input2.x <= x <= self.input2.x+self.input2.width and self.input2.y <= y <= self.input2.y+self.input2.height
+            # Кнопка подключения
             if self.start_btn['x'] <= x <= self.start_btn['x']+self.start_btn['w'] and self.start_btn['y'] <= y <= self.start_btn['y']+self.start_btn['h']:
                 self.connect_and_go_menu()
+            # Кнопка пропуска
+            elif self.skip_btn['x'] <= x <= self.skip_btn['x']+self.skip_btn['w'] and self.skip_btn['y'] <= y <= self.skip_btn['y']+self.skip_btn['h']:
+                self.skip_and_go_menu()
         elif self.state == "menu" or self.show_game_menu:
             y_pos = 380
             for name in self.game_folders:
@@ -105,11 +112,20 @@ class MainMenu(arcade.Window):
     def connect_and_go_menu(self):
         from cyber_bear_comms import CyberBearClient
         s1, s2 = self.input1.text.strip(), self.input2.text.strip()
-        if not s1 or not s2: return
-        if self.bear_client and self.bear_client.serials == [s1, s2]:
-            self.state = "menu"; self.show_game_menu = True; return
-        self.bear_client = CyberBearClient(serials=[s1, s2], max_bears=2)
+        # Если серии не введены, подключаемся без них
+        if not s1 and not s2:
+            self.bear_client = CyberBearClient(serials=None, max_bears=2)
+        elif not s2:
+            self.bear_client = CyberBearClient(serials=[s1], max_bears=1)
+        else:
+            self.bear_client = CyberBearClient(serials=[s1, s2], max_bears=2)
         self.bear_client.start()
+        self.state = "menu"
+        self.show_game_menu = True
+
+    def skip_and_go_menu(self):
+        """Переход в меню выбора игр без подключения мишек"""
+        self.bear_client = None
         self.state = "menu"
         self.show_game_menu = True
 

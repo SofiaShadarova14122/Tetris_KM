@@ -77,9 +77,9 @@ class Bear:
 
 
 class Fish:
-    def __init__(self, stream_id, start_x, start_y, end_x, end_y, speed=100, fish_type=1, flip_h=False):
+    def __init__(self, stream_id, start_x, start_y, end_x, end_y, speed=100, fish_type=1):
         self.stream_id, self.start_x, self.start_y, self.end_x, self.end_y = stream_id, start_x, start_y, end_x, end_y
-        self.progress, self.speed, self.fish_type, self.flip_h = 0.0, speed, fish_type, flip_h
+        self.progress, self.speed, self.fish_type = 0.0, speed, fish_type
         self.caught, self.sinking, self.sink_speed = False, False, 150
 
     def update(self, dt, field_bottom):
@@ -105,9 +105,20 @@ class Fish:
 
     def draw(self, game):
         x, y = self.get_position()
+        # Определяем медведя для этого поля
+        bear_x = game.bear1.x if self.stream_id < 4 else game.bear2.x
+
+        # Рыбка должна смотреть НА медведя
+        # Если рыбка слева от медведя (x < bear_x) - она плывет вправо (не зеркалим)
+        # Если рыбка справа от медведя (x > bear_x) - она плывет влево (зеркалим)
+        flip_h = (x > bear_x)
+
+        # Используем обычные fish_N.png (все повернуты влево по умолчанию)
         tex = game.fish_textures.get(self.fish_type)
         if tex:
-            draw_entity(tex, x, y, 40, 25, self.flip_h)
+            # Если flip_h=False, рыбка смотрит влево (как на картинке)
+            # Если flip_h=True, рыбка смотрит вправо (зеркально)
+            draw_entity(tex, x, y, 40, 25, flip_h)
         else:
             arcade.draw_circle_filled(x, y, 12, (255, 100, 100))
 
@@ -116,7 +127,6 @@ class FishingGame:
     def __init__(self):
         self.W, self.H = 1200, 950
         self.FW, self.FH = 480, 600
-        # Новые размеры по вашему запросу
         self.lx, self.rx, self.fy = 80, 80 + self.FW + 80, 200
         self.bear1 = Bear(self.lx + self.FW // 2, self.fy + 100)
         self.bear2 = Bear(self.rx + self.FW // 2, self.fy + 100)
@@ -132,19 +142,42 @@ class FishingGame:
         self.fishes, self.spawn_timer, self.spawn_interval = [], 0.0, 2.0
         self.paused, self.show_game_over = False, False
         self.bg = load_texture_safe("games/fishing/assets/images/field_background.png")
+
+        # Загрузка рыбок (все fish_N.png должны быть повернуты влево)
         self.fish_textures = {}
         for i in range(1, 10):
             tex = load_texture_safe(f"games/fishing/assets/images/fish_{i}.png")
             if tex: self.fish_textures[i] = tex
 
     def apply_controller_actions(self, actions):
-        for b in [self.bear1, self.bear2]:
-            for k in b.active_actions: b.active_actions[k] = False
+        # НЕ сбрасываем действия! Мишка сам отправляет 0 при отпускании
         for p, act in actions:
-            if p == 1:
-                self.bear1.set_action(act, True)
-            elif p == 2:
-                self.bear2.set_action(act, True)
+            if act is None:
+                # Сброс всех действий для этого игрока (пришел байт 0)
+                if p == 1:
+                    for k in self.bear1.active_actions: self.bear1.active_actions[k] = False
+                elif p == 2:
+                    for k in self.bear2.active_actions: self.bear2.active_actions[k] = False
+            else:
+                # Обработка комбинированных действий
+                if p == 1:
+                    if act == 'up_left':
+                        self.bear1.set_action('up', True)
+                        self.bear1.set_action('left', True)
+                    elif act == 'up_right':
+                        self.bear1.set_action('up', True)
+                        self.bear1.set_action('right', True)
+                    else:
+                        self.bear1.set_action(act, True)
+                elif p == 2:
+                    if act == 'up_left':
+                        self.bear2.set_action('up', True)
+                        self.bear2.set_action('left', True)
+                    elif act == 'up_right':
+                        self.bear2.set_action('up', True)
+                        self.bear2.set_action('right', True)
+                    else:
+                        self.bear2.set_action(act, True)
 
     def apply_keyboard_actions(self, actions):
         for p, act in actions:
@@ -166,8 +199,7 @@ class FishingGame:
             bear = self.bear1 if is_left else self.bear2
             speed = min(300, 100 + bear.score * 5)
             fish_type = random.choice(list(self.fish_textures.keys())) if self.fish_textures else 1
-            # Исправленная инверсия: слева (is_left=True) - не зеркалим, справа - зеркалим
-            self.fishes.append(Fish(sid if is_left else sid + 4, *s, speed, fish_type, flip_h=not is_left))
+            self.fishes.append(Fish(sid if is_left else sid + 4, *s, speed, fish_type))
             if (self.bear1.score + self.bear2.score) > 0 and (self.bear1.score + self.bear2.score) % 5 == 0:
                 self.spawn_interval = max(0.5, self.spawn_interval * 0.9)
 
