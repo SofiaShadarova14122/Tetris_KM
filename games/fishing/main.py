@@ -1,23 +1,23 @@
-# Tetris_KM/games/CyberCubes/main.py
+# Tetris_KM/games/fishing/main.py
 import arcade
-from .game import CyberCubesGame
+from .game import FishingGame
 
-class CubesWindow(arcade.Window):
+class FishingWindow(arcade.Window):
     def __init__(self, bear_client):
-        super().__init__(1040, 950, "Мишуткины Кубики")
+        super().__init__(1200, 850, "Fishing")
         self.center_window()
-        self.bear_client, self.game, self.pressed_keys = bear_client, CyberCubesGame(), set()
+        self.bear_client, self.game, self.pressed_keys = bear_client, FishingGame(), set()
 
     def on_update(self, dt):
-        if not self.game.game_over:
+        if not self.game.show_game_over:
             if self.bear_client: self.game.apply_controller_actions(self.bear_client.get_actions())
             self.game.apply_keyboard_actions(self._get_kb_actions())
             self.game.update(dt)
 
     def _get_kb_actions(self):
         acts = []
-        for k, p, a in [(arcade.key.W,1,'rotate'),(arcade.key.A,1,'left'),(arcade.key.S,1,'down'),(arcade.key.D,1,'right'),
-                        (arcade.key.UP,2,'rotate'),(arcade.key.LEFT,2,'left'),(arcade.key.DOWN,2,'down'),(arcade.key.RIGHT,2,'right')]:
+        for k, p, a in [(arcade.key.W,1,'up'),(arcade.key.A,1,'left'),(arcade.key.S,1,'down'),(arcade.key.D,1,'right'),
+                        (arcade.key.UP,2,'up'),(arcade.key.LEFT,2,'left'),(arcade.key.DOWN,2,'down'),(arcade.key.RIGHT,2,'right')]:
             if k in self.pressed_keys: acts.append((p,a))
         return acts
 
@@ -30,4 +30,4 @@ class CubesWindow(arcade.Window):
         if key in self.pressed_keys: self.pressed_keys.remove(key)
 
 def main(bear_client=None):
-    app = CubesWindow(bear_client); arcade.run()
+    app = FishingWindow(bear_client); arcade.run()
