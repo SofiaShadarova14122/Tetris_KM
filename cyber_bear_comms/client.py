@@ -7,23 +7,15 @@ from bleak import BleakScanner, BleakClient
 SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb"
 NOTIFY_UUID = "0000fff1-0000-1000-8000-00805f9b34fb"
 
-# Исправленный маппинг согласно требованиям:
-# Игрок 1: 1=вверх, 2=влево, 3=вниз, 4=вправо
-# Игрок 2: 5=вверх, 6=влево, 7=вниз, 8=вправо
+# Маппинг байтов согласно требованиям
 BEAR1_MAP = {
-    1: 'up',
-    2: 'left',
-    3: 'down',
-    4: 'right'
+    1: 'up', 2: 'left', 3: 'down', 4: 'right',
+    5: 'up_left', 6: 'up_right', 0: None
 }
-
 BEAR2_MAP = {
-    5: 'up',
-    6: 'left',
-    7: 'down',
-    8: 'right'
+    11: 'up', 22: 'left', 33: 'down', 44: 'right',
+    55: 'up_left', 66: 'up_right', 0: None
 }
-
 
 class CyberBearClient:
     def __init__(self, serials=None, max_bears=2):
@@ -37,23 +29,15 @@ class CyberBearClient:
         self.is_running = False
 
     def _notification_callback(self, sender, data):
-        """Обработчик уведомлений от медведей"""
         if len(data) >= 1:
             byte_val = data[0]
-            player_num = None
-            action = None
-
+            player_num, action = None, None
             if byte_val in BEAR1_MAP:
-                player_num = 1
-                action = BEAR1_MAP[byte_val]
+                player_num, action = 1, BEAR1_MAP[byte_val]
             elif byte_val in BEAR2_MAP:
-                player_num = 2
-                action = BEAR2_MAP[byte_val]
-
-            if player_num and action:
+                player_num, action = 2, BEAR2_MAP[byte_val]
+            if player_num is not None:
                 self.action_queue.put((player_num, action))
-                # Вывод в терминал для отладки
-                print(f"🐻 Медведь {player_num}: байт {byte_val} → действие '{action}'")
 
     async def _async_task(self):
         try:
@@ -69,24 +53,21 @@ class CyberBearClient:
                             print(f"✅ Найден: {dev.name}")
                             if len(target_devices) >= self.max_bears:
                                 break
-
             if not target_devices:
                 print("⚠️ КиберМишки не найдены.")
                 return
-
             for idx, dev in enumerate(target_devices):
                 bear_num = idx + 1
                 client = BleakClient(dev.address)
                 try:
                     await client.connect()
-                    await client.disconnect()
+                    await client.disconnect()  # CH9141K workaround
                     await client.connect()
                     await client.start_notify(NOTIFY_UUID, self._notification_callback)
                     self.status[f'bear{bear_num}'] = True
                     print(f"🐻 Подключено к мишке {bear_num} ({dev.name})")
                 except Exception as e:
                     print(f"❌ Ошибка подключения мишки {bear_num}: {e}")
-
             print("🎮 Ожидание сигналов от контроллеров...")
             while not self._stop_event.is_set():
                 await asyncio.sleep(0.1)
@@ -96,8 +77,7 @@ class CyberBearClient:
             print("🔌 BLE сессия завершена.")
 
     def start(self):
-        if self.is_running:
-            return
+        if self.is_running: return
         self.is_running = True
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run_async, daemon=True)
@@ -121,7 +101,6 @@ class CyberBearClient:
         self.is_running = False
 
     def get_actions(self):
-        """Возвращает список действий от контроллеров"""
         actions = []
         while not self.action_queue.empty():
             try:

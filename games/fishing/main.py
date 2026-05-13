@@ -4,9 +4,11 @@ from .game import FishingGame
 
 class FishingWindow(arcade.Window):
     def __init__(self, bear_client):
-        super().__init__(1200, 850, "Fishing")
+        super().__init__(1200, 950, "Fishing")
         self.center_window()
-        self.bear_client, self.game, self.pressed_keys = bear_client, FishingGame(), set()
+        self.bear_client = bear_client
+        self.game = FishingGame()
+        self.pressed_keys = set()
 
     def on_update(self, dt):
         if not self.game.show_game_over:

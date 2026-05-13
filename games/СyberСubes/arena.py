@@ -1,4 +1,4 @@
-# arena.py
+# Tetris_KM/games/CyberCubes/arena.py
 class Arena:
     def __init__(self, width=10, height=20):
         self.width = width

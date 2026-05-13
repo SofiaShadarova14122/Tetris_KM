@@ -1,4 +1,4 @@
-# pieces.py
+# Tetris_KM/games/CyberCubes/pieces.py
 import random
 
 def create_piece(piece_type):

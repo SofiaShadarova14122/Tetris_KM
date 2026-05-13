@@ -6,7 +6,6 @@ import os
 MAX_LIVES = 10
 TEXTURE_SIZE = 80
 
-
 def load_texture_safe(path):
     if os.path.exists(path):
         try:
@@ -14,7 +13,6 @@ def load_texture_safe(path):
         except:
             pass
     return None
-
 
 def draw_entity(texture, x, y, w, h, flip_h=False):
     if texture is None: return
@@ -25,7 +23,6 @@ def draw_entity(texture, x, y, w, h, flip_h=False):
     if flip_h:
         sprite.flip_horizontally = True
     arcade.draw_sprite(sprite)
-
 
 class Bear:
     def __init__(self, x, y):
@@ -47,12 +44,9 @@ class Bear:
         if self.game_over: return
         self.is_reaching = self.active_actions['up']
         if self.active_actions['up']:
-            self.target_facing = "up_left" if self.active_actions['left'] else "up_right" if self.active_actions[
-                'right'] else "up"
+            self.target_facing = "up_left" if self.active_actions['left'] else "up_right" if self.active_actions['right'] else "up"
         else:
-            self.target_facing = "left" if self.active_actions['left'] else "right" if self.active_actions[
-                'right'] else "idle"
-
+            self.target_facing = "left" if self.active_actions['left'] else "right" if self.active_actions['right'] else "idle"
         if self.facing != self.target_facing:
             self.rotation_progress += self.rotation_speed
             if self.rotation_progress >= 1.0: self.facing = self.target_facing; self.rotation_progress = 0.0
@@ -75,11 +69,10 @@ class Bear:
     def draw_health(self, x, y):
         for i in range(self.lives): arcade.draw_circle_filled(x + i * 25, y, 8, (255, 215, 0))
 
-
 class Fish:
-    def __init__(self, stream_id, start_x, start_y, end_x, end_y, speed=100, fish_type=1, flip_h=False):
+    def __init__(self, stream_id, start_x, start_y, end_x, end_y, speed=100, fish_type=1):
         self.stream_id, self.start_x, self.start_y, self.end_x, self.end_y = stream_id, start_x, start_y, end_x, end_y
-        self.progress, self.speed, self.fish_type, self.flip_h = 0.0, speed, fish_type, flip_h
+        self.progress, self.speed, self.fish_type = 0.0, speed, fish_type
         self.caught, self.sinking, self.sink_speed = False, False, 150
 
     def update(self, dt, field_bottom):
@@ -92,8 +85,7 @@ class Fish:
 
     def get_position(self):
         if self.sinking: return self.end_x, self.end_y
-        return self.start_x + (self.end_x - self.start_x) * self.progress, self.start_y + (
-                    self.end_y - self.start_y) * self.progress
+        return self.start_x + (self.end_x - self.start_x) * self.progress, self.start_y + (self.end_y - self.start_y) * self.progress
 
     def dist_to_zone(self, l, r):
         x, _ = self.get_position()
@@ -105,18 +97,20 @@ class Fish:
 
     def draw(self, game):
         x, y = self.get_position()
-        tex = game.fish_textures.get(self.fish_type)
+        bear_x = game.bear1.x if self.stream_id < 4 else game.bear2.x
+        use_rt = (x > bear_x)
+        # ✅ ИСПРАВЛЕНО: поменяли местами словари, чтобы отражение шло в нужную сторону
+        tex_dict = game.fish_textures if use_rt else game.fish_rt_textures
+        tex = tex_dict.get(self.fish_type)
         if tex:
-            draw_entity(tex, x, y, 40, 25, self.flip_h)
+            draw_entity(tex, x, y, 40, 25, flip_h=False)
         else:
             arcade.draw_circle_filled(x, y, 12, (255, 100, 100))
-
 
 class FishingGame:
     def __init__(self):
         self.W, self.H = 1200, 950
         self.FW, self.FH = 480, 600
-        # Новые размеры по вашему запросу
         self.lx, self.rx, self.fy = 80, 80 + self.FW + 80, 200
         self.bear1 = Bear(self.lx + self.FW // 2, self.fy + 100)
         self.bear2 = Bear(self.rx + self.FW // 2, self.fy + 100)
@@ -136,27 +130,39 @@ class FishingGame:
         for i in range(1, 10):
             tex = load_texture_safe(f"games/fishing/assets/images/fish_{i}.png")
             if tex: self.fish_textures[i] = tex
+        self.fish_rt_textures = {}
+        for i in range(1, 10):
+            tex = load_texture_safe(f"games/fishing/assets/images/fish_rt_{i}.png")
+            if tex: self.fish_rt_textures[i] = tex
 
     def apply_controller_actions(self, actions):
         for b in [self.bear1, self.bear2]:
             for k in b.active_actions: b.active_actions[k] = False
         for p, act in actions:
-            if p == 1:
-                self.bear1.set_action(act, True)
+            if act is None:
+                target = self.bear1 if p == 1 else self.bear2
+                for k in target.active_actions: target.active_actions[k] = False
+            elif p == 1:
+                if act in ('up_left', 'up_right'):
+                    self.bear1.set_action('up', True)
+                    self.bear1.set_action('left' if act == 'up_left' else 'right', True)
+                else:
+                    self.bear1.set_action(act, True)
             elif p == 2:
-                self.bear2.set_action(act, True)
+                if act in ('up_left', 'up_right'):
+                    self.bear2.set_action('up', True)
+                    self.bear2.set_action('left' if act == 'up_left' else 'right', True)
+                else:
+                    self.bear2.set_action(act, True)
 
     def apply_keyboard_actions(self, actions):
         for p, act in actions:
-            if p == 1:
-                self.bear1.set_action(act, True)
-            elif p == 2:
-                self.bear2.set_action(act, True)
+            if p == 1: self.bear1.set_action(act, True)
+            elif p == 2: self.bear2.set_action(act, True)
 
     def update(self, dt):
         if self.paused or self.show_game_over: return
-        self.bear1.update_state();
-        self.bear2.update_state()
+        self.bear1.update_state(); self.bear2.update_state()
         self.spawn_timer += dt
         if self.spawn_timer >= self.spawn_interval and len(self.fishes) < 6:
             self.spawn_timer = 0
@@ -166,21 +172,17 @@ class FishingGame:
             bear = self.bear1 if is_left else self.bear2
             speed = min(300, 100 + bear.score * 5)
             fish_type = random.choice(list(self.fish_textures.keys())) if self.fish_textures else 1
-            # Исправленная инверсия: слева (is_left=True) - не зеркалим, справа - зеркалим
-            self.fishes.append(Fish(sid if is_left else sid + 4, *s, speed, fish_type, flip_h=not is_left))
+            self.fishes.append(Fish(sid if is_left else sid+4, *s, speed, fish_type))
             if (self.bear1.score + self.bear2.score) > 0 and (self.bear1.score + self.bear2.score) % 5 == 0:
                 self.spawn_interval = max(0.5, self.spawn_interval * 0.9)
-
         for fish in self.fishes[:]:
             bear = self.bear1 if fish.stream_id < 4 else self.bear2
             lz, rz = bear.get_loss_zone()
             if not fish.sinking:
                 if 1 <= fish.dist_to_zone(lz, rz) <= 30:
                     upper = fish.stream_id in (0, 1, 4, 5)
-                    catch = (bear.is_reaching and ((fish.stream_id in (0, 4) and bear.active_actions['left']) or (
-                                fish.stream_id in (1, 5) and bear.active_actions['right']))) if upper else \
-                        ((fish.stream_id in (2, 6) and bear.active_actions['left']) or (
-                                    fish.stream_id in (3, 7) and bear.active_actions['right']))
+                    catch = (bear.is_reaching and ((fish.stream_id in (0,4) and bear.active_actions['left']) or (fish.stream_id in (1,5) and bear.active_actions['right']))) if upper else \
+                            ((fish.stream_id in (2,6) and bear.active_actions['left']) or (fish.stream_id in (3,7) and bear.active_actions['right']))
                     if catch: fish.caught = True; bear.score += 1; self.fishes.remove(fish); continue
                 if fish.in_zone(lz, rz): fish.sinking = True
             if fish.update(dt, self.fy + self.FH):
@@ -198,27 +200,31 @@ class FishingGame:
         else:
             arcade.draw_lrbt_rectangle_filled(self.lx, self.lx + self.FW, self.fy, self.fy + self.FH, (217, 217, 217))
             arcade.draw_lrbt_rectangle_filled(self.rx, self.rx + self.FW, self.fy, self.fy + self.FH, (217, 217, 217))
-        self.bear1.draw();
-        self.bear2.draw()
+        self.bear1.draw(); self.bear2.draw()
         for f in self.fishes: f.draw(self)
         hy, sy = self.fy - 40, self.fy + self.FH + 20
-        self.bear1.draw_health(self.lx + 20, hy);
-        self.bear2.draw_health(self.rx + 20, hy)
-        arcade.draw_text(f"Счёт: {self.bear1.score}", self.lx + 20, sy, (0, 0, 0), 14)
-        arcade.draw_text(f"Счёт: {self.bear2.score}", self.rx + 20, sy, (0, 0, 0), 14)
+        self.bear1.draw_health(self.lx + 20, hy); self.bear2.draw_health(self.rx + 20, hy)
+        try: arcade.draw_text(f"Счёт: {self.bear1.score}", self.lx + 20, sy, (0, 0, 0), 14)
+        except: pass
+        try: arcade.draw_text(f"Счёт: {self.bear2.score}", self.rx + 20, sy, (0, 0, 0), 14)
+        except: pass
         if self.paused:
             arcade.draw_lrbt_rectangle_filled(0, self.W, 0, self.H, (0, 0, 0, 180))
-            arcade.draw_text("ПАУЗА", self.W // 2, self.H // 2, (255, 255, 255), 32, anchor_x="center")
-            arcade.draw_text("Нажмите ESC/M для выхода в меню", self.W // 2, self.H // 2 - 50, (200, 200, 200), 18,
-                             anchor_x="center")
+            try: arcade.draw_text("ПАУЗА", self.W // 2, self.H // 2, (255, 255, 255), 32, anchor_x="center")
+            except: pass
+            try: arcade.draw_text("Нажмите ESC/M для выхода в меню", self.W // 2, self.H // 2 - 50, (200, 200, 200), 18, anchor_x="center")
+            except: pass
         if self.show_game_over:
             arcade.draw_lrbt_rectangle_filled(0, self.W, 0, self.H, (241, 241, 241))
-            arcade.draw_text("ИГРА ОКОНЧЕНА", self.W // 2, self.H // 2 + 60, (40, 40, 40), 32, anchor_x="center")
+            try: arcade.draw_text("ИГРА ОКОНЧЕНА", self.W // 2, self.H // 2 + 60, (40, 40, 40), 32, anchor_x="center")
+            except: pass
             w = "Игрок 1 победил!" if self.bear1.score > self.bear2.score else "Игрок 2 победил!" if self.bear2.score > self.bear1.score else "Ничья!"
-            arcade.draw_text(w, self.W // 2, self.H // 2, (60, 60, 60), 24, anchor_x="center")
-            arcade.draw_text(f"1: {self.bear1.score} | 2: {self.bear2.score}", self.W // 2, self.H // 2 - 40,
-                             (40, 40, 40), 18, anchor_x="center")
-            arcade.draw_text("Нажмите ESC", self.W // 2, self.H // 2 - 80, (100, 100, 100), 16, anchor_x="center")
+            try: arcade.draw_text(w, self.W // 2, self.H // 2, (60, 60, 60), 24, anchor_x="center")
+            except: pass
+            try: arcade.draw_text(f"1: {self.bear1.score} | 2: {self.bear2.score}", self.W // 2, self.H // 2 - 40, (40, 40, 40), 18, anchor_x="center")
+            except: pass
+            try: arcade.draw_text("Нажмите ESC", self.W // 2, self.H // 2 - 80, (100, 100, 100), 16, anchor_x="center")
+            except: pass
 
     def toggle_pause(self):
         self.paused = not self.paused
