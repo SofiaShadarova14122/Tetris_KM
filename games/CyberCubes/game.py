@@ -27,16 +27,14 @@ class CyberCubesGame:
         self.p2 = Player(Arena(10, 20), player_id=2)
         self.game_over = False
         self.paused = False
+        self.show_rules = True
         self.winner_text = ""
-
-        # Очередь мусора для отправки сопернику
         self.p1_garbage_pending = 0
         self.p2_garbage_pending = 0
 
     def update(self, dt, p1_actions, p2_actions):
-        if self.paused or self.game_over: return
+        if self.paused or self.game_over or self.show_rules: return
 
-        # Запоминаем количество линий ДО обновления
         p1_lines_before = self.p1.lines_cleared
         p2_lines_before = self.p2.lines_cleared
 
@@ -68,38 +66,29 @@ class CyberCubesGame:
         for y in range(20):
             if all(c != 0 for c in self.p1.arena.matrix[y]) and all(c != 0 for c in self.p2.arena.matrix[y]):
                 rows_to_clear.append(y)
-
         for y in sorted(rows_to_clear, reverse=True):
-            del self.p1.arena.matrix[y]
+            del self.p1.arena.matrix[y];
             self.p1.arena.matrix.insert(0, [0] * 10)
-            del self.p2.arena.matrix[y]
+            del self.p2.arena.matrix[y];
             self.p2.arena.matrix.insert(0, [0] * 10)
-            self.p1.lines_cleared += 1
+            self.p1.lines_cleared += 1;
             self.p2.lines_cleared += 1
 
     def _clear_versus_lines(self, p1_before, p2_before):
         for p in [self.p1, self.p2]:
             lines = p.arena.sweep()
             if lines > 0:
-                p.lines_cleared += lines
+                p.lines_cleared += lines;
                 p.score += lines * 10
                 p.drop_interval = max(0.1, 1.0 - (p.lines_cleared // 10) * 0.05)
-
-                # ✅ ОТПРАВКА МУСОРА СОПЕРНИКУ
-                garbage_lines = lines  # 1 линия = 1 мусор (можно умножить на 2 для сложности)
                 if p == self.p1:
-                    self.p2_garbage_pending += garbage_lines
+                    self.p2_garbage_pending += lines
                 else:
-                    self.p1_garbage_pending += garbage_lines
+                    self.p1_garbage_pending += lines
 
     def _apply_pending_garbage(self):
-        # Применяем накопленный мусор
-        if self.p1_garbage_pending > 0:
-            self.p1.arena.add_garbage(self.p1_garbage_pending)
-            self.p1_garbage_pending = 0
-        if self.p2_garbage_pending > 0:
-            self.p2.arena.add_garbage(self.p2_garbage_pending)
-            self.p2_garbage_pending = 0
+        if self.p1_garbage_pending > 0: self.p1.arena.add_garbage(self.p1_garbage_pending); self.p1_garbage_pending = 0
+        if self.p2_garbage_pending > 0: self.p2.arena.add_garbage(self.p2_garbage_pending); self.p2_garbage_pending = 0
 
     def draw(self):
         arcade.set_background_color((245, 245, 250))
@@ -114,18 +103,32 @@ class CyberCubesGame:
                              anchor_x="center")
             Config.draw_text(f"Игрок 2: {self.p2.score}", self.x2 + 50, self.y + self.fh + 10, Config.P2_COLOR, 16,
                              anchor_x="center")
-
-            # Показываем очередь мусора
-            if self.p1_garbage_pending > 0:
-                Config.draw_text(f"⚠ +{self.p1_garbage_pending}", self.x1 + 50, self.y - 20, (255, 100, 100), 16,
-                                 anchor_x="center")
-            if self.p2_garbage_pending > 0:
-                Config.draw_text(f"⚠ +{self.p2_garbage_pending}", self.x2 + 50, self.y - 20, (255, 100, 100), 16,
-                                 anchor_x="center")
+            if self.p1_garbage_pending > 0: Config.draw_text(f"⚠ +{self.p1_garbage_pending}", self.x1 + 50, self.y - 20,
+                                                             (255, 100, 100), 16, anchor_x="center")
+            if self.p2_garbage_pending > 0: Config.draw_text(f"⚠ +{self.p2_garbage_pending}", self.x2 + 50, self.y - 20,
+                                                             (255, 100, 100), 16, anchor_x="center")
 
         if self.paused:
             arcade.draw_lrbt_rectangle_filled(0, self.width, 0, self.height, (0, 0, 0, 180))
             Config.draw_text("ПАУЗА", self.width // 2, self.height // 2, (255, 255, 255), 36, anchor_x="center")
+            Config.draw_text("P - Продолжить | ESC - Меню", self.width // 2, self.height // 2 - 50, (200, 200, 200), 18,
+                             anchor_x="center")
+
+        if self.show_rules:
+            arcade.draw_lrbt_rectangle_filled(0, self.width, 0, self.height, (241, 241, 241, 240))
+            mode_name = "CO-OP" if self.mode == 'coop' else "VERSUS"
+            Config.draw_text(f"ПРАВИЛА: {mode_name}", self.width // 2, self.height // 2 + 150, (40, 40, 40), 32,
+                             anchor_x="center")
+            rules = [
+                "🎮 Управление: A/D или ←/→ - движение, W/↑ - поворот, S/↓ - ускорение",
+                "🤝 CO-OP: ЛИНИИ УДАЛЯЮТСЯ ТОЛЬКО ЕСЛИ СОБРАНЫ У ОБОИХ ИГРОКОВ",
+                "⚔️ VERSUS: СОБИРАЙТЕ ЛИНИИ БЫСТРЕЕ! Соперник получает мусор снизу.",
+                " VERSUS: Побеждает игрок с большим счетом.",
+                "", "ENTER - Начать игру | ESC - Вернуться в меню выбора"
+            ]
+            for i, rule in enumerate(rules):
+                color = (0, 100, 0) if "ENTER" in rule or "ESC" in rule else (60, 60, 60)
+                Config.draw_text(rule, self.width // 2, self.height // 2 + 100 - i * 30, color, 16, anchor_x="center")
 
         if self.game_over:
             arcade.draw_lrbt_rectangle_filled(0, self.width, 0, self.height, (241, 241, 241))
@@ -135,23 +138,22 @@ class CyberCubesGame:
             else:
                 Config.draw_text(f"Итоговый счет: {self.shared_score}", self.width // 2, self.height // 2, (0, 0, 0),
                                  24, anchor_x="center")
+            Config.draw_text("Нажмите ESC для выхода в меню", self.width // 2, self.height // 2 - 50, (100, 100, 100),
+                             18, anchor_x="center")
 
     def _draw_player(self, player, x, y):
         CELL = 32
-        # ✅ НЕЙТРАЛЬНЫЙ ФОН вместо яркого
         bg_color = (245, 245, 245)
         arcade.draw_lrbt_rectangle_filled(x - 5, x + 10 * CELL + 5, y - 5, y + 20 * CELL + 5, bg_color)
         arcade.draw_lrbt_rectangle_outline(x, x + 10 * CELL, y, y + 20 * CELL, player.border_color, 4)
-
         for r in range(21): arcade.draw_line(x, y + r * CELL, x + 10 * CELL, y + r * CELL, (230, 230, 230), 1)
         for c in range(11): arcade.draw_line(x + c * CELL, y, x + c * CELL, y + 20 * CELL, (230, 230, 230), 1)
-
         for r in range(20):
             for c in range(10):
                 if player.arena.matrix[r][c]:
                     col = Config.GENERAL_COLORS[player.arena.matrix[r][c]]
-                    arcade.draw_lrbt_rectangle_filled(x + c * CELL + 1, x + (c + 1) * CELL - 1,
-                                                      y + (19 - r) * CELL + 1, y + (20 - r) * CELL - 1, col)
+                    arcade.draw_lrbt_rectangle_filled(x + c * CELL + 1, x + (c + 1) * CELL - 1, y + (19 - r) * CELL + 1,
+                                                      y + (20 - r) * CELL - 1, col)
         if player.matrix and not player.game_over:
             for r, row in enumerate(player.matrix):
                 for c, v in enumerate(row):
@@ -161,24 +163,23 @@ class CyberCubesGame:
                             col = Config.GENERAL_COLORS[v]
                             arcade.draw_lrbt_rectangle_filled(x + px * CELL + 1, x + (px + 1) * CELL - 1,
                                                               y + (19 - py) * CELL + 1, y + (20 - py) * CELL - 1, col)
-
         if player.player_id == 1:
             prev_x = x - 110
         else:
             prev_x = x + 10 * CELL + 15
         prev_y = y + 20 * CELL - 80
-
         color = Config.P1_COLOR if player.player_id == 1 else Config.P2_COLOR
         arcade.draw_lrbt_rectangle_outline(prev_x - 5, prev_x + 85, prev_y - 5, prev_y + 65, color, 2)
         Config.draw_text("Next:", prev_x + 40, prev_y + 70, color, 12, anchor_x="center")
-
         if player.next_piece:
             for r, row in enumerate(player.next_piece):
                 for c, v in enumerate(row):
-                    if v:
-                        arcade.draw_lrbt_rectangle_filled(prev_x + c * 15 + 5, prev_x + (c + 1) * 15 - 5 + 5,
-                                                          prev_y + 45 - r * 15, prev_y + 60 - r * 15,
-                                                          Config.GENERAL_COLORS[v])
+                    if v: arcade.draw_lrbt_rectangle_filled(prev_x + c * 15 + 5, prev_x + (c + 1) * 15 - 5 + 5,
+                                                            prev_y + 45 - r * 15, prev_y + 60 - r * 15,
+                                                            Config.GENERAL_COLORS[v])
 
     def toggle_pause(self):
-        self.paused = not self.paused
+        if not self.show_rules and not self.game_over: self.paused = not self.paused
+
+    def start_game(self):
+        self.show_rules = False

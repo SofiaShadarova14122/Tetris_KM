@@ -1,4 +1,4 @@
-# Tetris_KM/games/СyberСubes/main.py
+# Tetris_KM/games/CyberCubes/main.py
 import arcade
 from input_manager import InputManager
 from .game import CyberCubesGame
@@ -25,13 +25,13 @@ class CubesWindow(arcade.Window):
 
     def on_key_press(self, key, mods):
         self.pressed_keys.add(key)
-        if key == arcade.key.P: self.game.toggle_pause()
-        elif key in (arcade.key.ESCAPE, arcade.key.M): arcade.close_window()
-        elif key in (arcade.key.W, arcade.key.UP):
-            player = self.game.p1 if key == arcade.key.W else self.game.p2
-            if not player.game_over and not player.rotate_lock:
-                player.rotate(1)
-                player.rotate_lock = True
+        if key == arcade.key.P:
+            self.game.toggle_pause()
+        elif key == arcade.key.ENTER and self.game.show_rules:
+            self.game.start_game()
+        # ✅ ESC/M всегда возвращает в главное меню
+        elif key in (arcade.key.ESCAPE, arcade.key.M):
+            arcade.close_window()
 
     def on_key_release(self, key, mods):
         if key in self.pressed_keys: self.pressed_keys.remove(key)
@@ -39,7 +39,6 @@ class CubesWindow(arcade.Window):
             player = self.game.p1 if key == arcade.key.W else self.game.p2
             player.rotate_lock = False
 
-# ✅ mode='versus' по умолчанию
 def main(bear_client=None, mode='versus'):
     app = CubesWindow(bear_client, mode=mode)
     arcade.run()
