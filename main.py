@@ -2,42 +2,24 @@
 import arcade
 import os
 import importlib
+from ui.serial_menu import SerialMenu
+from config import Config
+# ✅ ИСПРАВЛЕНИЕ: Правильный импорт клиента
+from cyber_bear_comms.client import CyberBearClient
 
-class TextInput:
-    def __init__(self, x, y, width, height, placeholder=""):
-        self.x, self.y, self.width, self.height = x, y, width, height
-        self.text, self.placeholder = "", placeholder
-        self.active, self.cursor_visible, self.cursor_timer = False, True, 0.0
-
-    def draw(self):
-        color = (0, 100, 200) if self.active else (150, 150, 150)
-        arcade.draw_lrbt_rectangle_filled(self.x, self.x+self.width, self.y, self.y+self.height, (255,255,255))
-        arcade.draw_lrbt_rectangle_outline(self.x, self.x+self.width, self.y, self.y+self.height, color, 3)
-        display = self.text if self.text else self.placeholder
-        if self.active and self.cursor_visible: display += "|"
-        try: arcade.draw_text(display, self.x+10, self.y+self.height//2, (0,0,0), 16, anchor_y="center")
-        except: pass
-
-    def update(self, dt):
-        self.cursor_timer += dt
-        if self.cursor_timer >= 0.5: self.cursor_visible = not self.cursor_visible; self.cursor_timer = 0.0
-    def add_text(self, text):
-        if self.active: self.text += text
-    def backspace(self):
-        if self.active: self.text = self.text[:-1]
 
 class MainMenu(arcade.Window):
     def __init__(self, bear_client=None, show_game_menu=False):
-        super().__init__(800, 600, "КиберМедведи: Меню")
+        super().__init__(800, 600, "КиберМедведи")
         arcade.set_background_color((241, 241, 241))
         self.bear_client = bear_client
         self.exit_program = False
         self.show_game_menu = show_game_menu or (bear_client is not None)
-        self.input1 = TextInput(250, 350, 300, 40, "Серия мишки 1")
-        self.input2 = TextInput(250, 280, 300, 40, "Серия мишки 2")
-        self.start_btn = {'x': 300, 'y': 180, 'w': 200, 'h': 50}
-        self.state, self.selected_game = "input", None
+        self.input_menu = SerialMenu(800, 600)
+        self.state = "input"
         self.game_folders = []
+
+        # Сканируем игры
         games_path = os.path.join(os.path.dirname(__file__), "games")
         if os.path.exists(games_path):
             for item in os.listdir(games_path):
@@ -45,97 +27,147 @@ class MainMenu(arcade.Window):
                 if os.path.isdir(full) and os.path.exists(os.path.join(full, "main.py")):
                     self.game_folders.append(item)
 
+        # Кнопки выбора режима
+        self.btn_versus = {'x': 250, 'y': 300, 'w': 300, 'h': 50}
+        self.btn_coop = {'x': 250, 'y': 230, 'w': 300, 'h': 50}
+        self.btn_fishing = {'x': 250, 'y': 160, 'w': 300, 'h': 50}
+
     def on_update(self, dt):
         if self.state == "input" and not self.show_game_menu:
-            self.input1.update(dt); self.input2.update(dt)
+            self.input_menu.update(dt)
 
     def on_draw(self):
         self.clear()
         if self.state == "input" and not self.show_game_menu:
-            try: arcade.draw_text("Введите серии КиберМишек", 400, 480, (40,40,40), 24, anchor_x="center")
-            except: pass
-            try: arcade.draw_text("Игрок 1:", 240, 370, (0,0,0), 16, anchor_x="right", anchor_y="center")
-            except: pass
-            try: arcade.draw_text("Игрок 2:", 240, 300, (0,0,0), 16, anchor_x="right", anchor_y="center")
-            except: pass
-            self.input1.draw(); self.input2.draw()
-            arcade.draw_lrbt_rectangle_filled(self.start_btn['x'], self.start_btn['x']+self.start_btn['w'],
-                                              self.start_btn['y'], self.start_btn['y']+self.start_btn['h'], (100,200,100))
-            try: arcade.draw_text("Подключить", 400, 205, (255,255,255), 18, anchor_x="center", anchor_y="center")
-            except: pass
+            self.input_menu.draw()
         else:
-            try: arcade.draw_text("Выберите игру:", 400, 500, (40,40,40), 24, anchor_x="center")
-            except: pass
-            status = self.bear_client.get_status() if self.bear_client else {'bear1':False, 'bear2':False}
-            s1 = "Мишка 1 найден ✅" if status.get('bear1') else "Мишка 1 не найден ❌"
-            s2 = "Мишка 2 найден ✅" if status.get('bear2') else "Мишка 2 не найден ❌"
-            c1 = (0,120,0) if status.get('bear1') else (180,0,0)
-            c2 = (0,120,0) if status.get('bear2') else (180,0,0)
-            try: arcade.draw_text(s1, 400, 460, c1, 16, anchor_x="center")
-            except: pass
-            try: arcade.draw_text(s2, 400, 430, c2, 16, anchor_x="center")
-            except: pass
-            y = 380
-            for name in self.game_folders:
-                color = (100,200,255) if self.selected_game == name else (200,200,255)
-                arcade.draw_lrbt_rectangle_filled(250, 550, y, y+40, color)
-                try: arcade.draw_text(name.replace("_"," ").title(), 400, y+20, (30,30,30), 16, anchor_x="center", anchor_y="center")
-                except: pass
-                y -= 50
+            Config.draw_text("Выберите игру:", 400, 500, (40, 40, 40), 24, anchor_x="center")
+
+            if self.bear_client:
+                status = self.bear_client.get_status()
+                c1 = Config.P1_COLOR if status.get('bear1') else (150, 150, 150)
+                c2 = Config.P2_COLOR if status.get('bear2') else (150, 150, 150)
+                Config.draw_text(f"{'✅' if status.get('bear1') else '❌'} Мишка 1", 400, 460, c1, 16, anchor_x="center")
+                Config.draw_text(f"{'✅' if status.get('bear2') else '❌'} Мишка 2", 400, 430, c2, 16, anchor_x="center")
+            else:
+                Config.draw_text("🎮 Игра на клавиатуре", 400, 450, (100, 100, 100), 16, anchor_x="center")
+
+            # Кнопка CyberCubes Versus
+            arcade.draw_lrbt_rectangle_filled(
+                self.btn_versus['x'], self.btn_versus['x'] + self.btn_versus['w'],
+                self.btn_versus['y'], self.btn_versus['y'] + self.btn_versus['h'],
+                (255, 100, 100)
+            )
+            Config.draw_text("CyberCubes: Versus", 400, 325, (255, 255, 255), 18, anchor_x="center", anchor_y="center")
+            Config.draw_text("(С мусорными линиями)", 400, 305, (200, 200, 200), 12, anchor_x="center",
+                             anchor_y="center")
+
+            # Кнопка CyberCubes Co-op
+            arcade.draw_lrbt_rectangle_filled(
+                self.btn_coop['x'], self.btn_coop['x'] + self.btn_coop['w'],
+                self.btn_coop['y'], self.btn_coop['y'] + self.btn_coop['h'],
+                (100, 200, 100)
+            )
+            Config.draw_text("CyberCubes: Co-op", 400, 255, (255, 255, 255), 18, anchor_x="center", anchor_y="center")
+            Config.draw_text("(Общий счет, синхронно)", 400, 235, (200, 200, 200), 12, anchor_x="center",
+                             anchor_y="center")
+
+            # Кнопка Fishing
+            arcade.draw_lrbt_rectangle_filled(
+                self.btn_fishing['x'], self.btn_fishing['x'] + self.btn_fishing['w'],
+                self.btn_fishing['y'], self.btn_fishing['y'] + self.btn_fishing['h'],
+                (100, 180, 255)
+            )
+            Config.draw_text("Рыбалка (Общее поле)", 400, 185, (255, 255, 255), 18, anchor_x="center",
+                             anchor_y="center")
 
     def on_text(self, text):
         if self.state == "input" and not self.show_game_menu:
-            if self.input1.active: self.input1.add_text(text)
-            elif self.input2.active: self.input2.add_text(text)
+            self.input_menu.on_text(text)
 
     def on_key_press(self, key, mods):
         if self.state == "input" and not self.show_game_menu:
-            if key == arcade.key.TAB: self.input1.active = not self.input1.active; self.input2.active = not self.input2.active
-            elif key == arcade.key.BACKSPACE: self.input1.backspace() if self.input1.active else self.input2.backspace()
-            elif key == arcade.key.ENTER: self.connect_and_go_menu()
-        elif self.state == "menu" or self.show_game_menu:
-            if key == arcade.key.ENTER and self.selected_game:
-                self.launch_game()
+            res = self.input_menu.on_key(key, mods)
+            if res == "connect": self.connect_and_go_menu()
+        elif key == arcade.key.ESCAPE:
+            self.state = "input"
+            self.show_game_menu = False
 
     def on_mouse_press(self, x, y, btn, mods):
         if self.state == "input" and not self.show_game_menu:
-            self.input1.active = self.input1.x <= x <= self.input1.x+self.input1.width and self.input1.y <= y <= self.input1.y+self.input1.height
-            self.input2.active = not self.input1.active and self.input2.x <= x <= self.input2.x+self.input2.width and self.input2.y <= y <= self.input2.y+self.input2.height
-            if self.start_btn['x'] <= x <= self.start_btn['x']+self.start_btn['w'] and self.start_btn['y'] <= y <= self.start_btn['y']+self.start_btn['h']:
+            res = self.input_menu.on_mouse(x, y)
+            if res == "connect":
                 self.connect_and_go_menu()
+            elif res == "skip":
+                self.skip_and_go_menu()
         elif self.state == "menu" or self.show_game_menu:
-            y_pos = 380
-            for name in self.game_folders:
-                if 250 <= x <= 550 and y_pos <= y <= y_pos+40:
-                    self.selected_game = name
-                    self.launch_game()
-                    return
-                y_pos -= 50
+            if self._hit_button(self.btn_versus, x, y):
+                self.launch_game(mode='versus')
+            elif self._hit_button(self.btn_coop, x, y):
+                self.launch_game(mode='coop')
+            elif self._hit_button(self.btn_fishing, x, y):
+                self.launch_game(mode='fishing')
+
+    def _hit_button(self, btn, x, y):
+        return (btn['x'] <= x <= btn['x'] + btn['w'] and
+                btn['y'] <= y <= btn['y'] + btn['h'])
 
     def connect_and_go_menu(self):
-        from cyber_bear_comms import CyberBearClient
-        s1, s2 = self.input1.text.strip(), self.input2.text.strip()
-        if not s1 or not s2: return
-        if self.bear_client and self.bear_client.serials == [s1, s2]:
-            self.state = "menu"; self.show_game_menu = True; return
-        self.bear_client = CyberBearClient(serials=[s1, s2], max_bears=2)
+        s1, s2 = self.input_menu.s1.strip(), self.input_menu.s2.strip()
+        serials = [s for s in [s1, s2] if s]
+        self.bear_client = CyberBearClient(serials if serials else None)
         self.bear_client.start()
         self.state = "menu"
         self.show_game_menu = True
 
-    def launch_game(self):
-        if not self.selected_game: return
+    def skip_and_go_menu(self):
+        self.bear_client = None
+        self.state = "menu"
+        self.show_game_menu = True
+
+    def launch_game(self, mode='versus'):
         try:
-            mod = importlib.import_module(f"games.{self.selected_game}.main")
+            target_folder = None
+            for folder in self.game_folders:
+                # Нормализуем имя: убираем кириллицу, меняем регистр
+                norm = folder.lower().replace('с', 'c').replace('у', 'y').replace('е', 'e').replace('р', 'p').replace(
+                    'о', 'o').replace('а', 'a')
+
+                if mode == 'fishing':
+                    if 'fishing' in norm:
+                        target_folder = folder
+                        break
+                else:  # versus или coop
+                    if any(k in norm for k in ['cyber', 'cubes', 'tetris']):
+                        target_folder = folder
+                        break
+
+            if not target_folder:
+                print(f"❌ Не найдена папка для '{mode}'. Доступные: {self.game_folders}")
+                return
+
+            print(f"✅ Запускаем: games.{target_folder}.main")
+            mod = importlib.import_module(f"games.{target_folder}.main")
+
             self.close()
-            mod.main(self.bear_client)
+            # Безопасный вызов: проверяем, принимает ли функция mode
+            import inspect
+            sig = inspect.signature(mod.main)
+            if 'mode' in sig.parameters:
+                mod.main(self.bear_client, mode=mode)
+            else:
+                mod.main(self.bear_client)
+
         except Exception as e:
             print(f"❌ Ошибка запуска: {e}")
+            import traceback
+            traceback.print_exc()
 
     def on_close(self):
         if self.bear_client: self.bear_client.stop()
         self.exit_program = True
         super().on_close()
+
 
 def main():
     client = None
@@ -144,6 +176,7 @@ def main():
         arcade.run()
         if app.exit_program: break
         client = app.bear_client
+
 
 if __name__ == "__main__":
     main()
