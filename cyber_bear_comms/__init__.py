@@ -1,3 +1,3 @@
-# Tetris_KM/cyber_bear_comms/__init__.py
+# Пустой файл для пакета
 from .client import CyberBearClient
 __all__ = ["CyberBearClient"]

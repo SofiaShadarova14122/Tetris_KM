@@ -1,112 +1,110 @@
 # Tetris_KM/games/CyberCubes/player.py
-from .pieces import get_random_piece
+from .pieces import get_piece
 from config import Config
 
 
 class Player:
-    def __init__(self, arena, player_id=1):
+    def __init__(self, arena, id):
         self.arena = arena
-        self.player_id = player_id
-        self.DROP_SLOW = 1.0
-        self.DROP_FAST = 0.05
-        self.normal_drop_interval = self.DROP_SLOW
-        self.drop_interval = self.normal_drop_interval
-        self.drop_counter = 0.0
+        self.id = id
+        self.color = Config.P1_COLOR if id == 1 else Config.P2_COLOR
+        self.base_speed = 1.0
+        self.speed = self.base_speed
+        self.drop_t = 0.0
         self.pos = {'x': 0, 'y': 0}
         self.matrix = None
         self.score = 0
-        self.lines_cleared = 0
         self.game_over = False
-        self.next_piece = get_random_piece()
-        self.rotate_lock = False
-
-        self.move_timer_l = 0.0
-        self.move_timer_r = 0.0
-        self.das_delay = 0.18
-        self.das_repeat = 0.08
-
-        self.border_color = Config.P1_COLOR if player_id == 1 else Config.P2_COLOR
+        self.next = get_piece()
+        self.lock = False
+        self.move_t = {'l': 0, 'r': 0}
+        self.das = 0.18
+        self.rep = 0.08
         self.reset()
 
     def reset(self):
-        self.matrix = self.next_piece
-        self.next_piece = get_random_piece()
+        self.matrix = self.next
+        self.next = get_piece()
         self.pos['y'] = 0
-        self.pos['x'] = (self.arena.width // 2) - (len(self.matrix[0]) // 2)
-        if self.arena.collide(self):
-            self.game_over = True
+        self.pos['x'] = (10 - len(self.matrix[0])) // 2
+        if self.arena.collide(self): self.game_over = True
 
     def move(self, dx):
         if self.game_over: return
         self.pos['x'] += dx
-        if self.arena.collide(self):
-            self.pos['x'] -= dx
+        if self.arena.collide(self): self.pos['x'] -= dx
 
-    def rotate(self, direction):
+    def rotate(self, d):
         if self.game_over: return
-        original = [row[:] for row in self.matrix]
-        self._rotate_matrix(direction)
+        orig = [r[:] for r in self.matrix]
+        self._rot(d)
         if self.arena.collide(self):
-            original_x = self.pos['x']
-            offset = 1
+            ox = self.pos['x']
+            off = 1
             while self.arena.collide(self):
-                self.pos['x'] += offset
-                offset = -(offset + (1 if offset > 0 else -1))
-                if abs(offset) > len(self.matrix[0]):
-                    self.matrix = original
-                    self.pos['x'] = original_x
+                self.pos['x'] += off
+                off = -(off + (1 if off > 0 else -1))
+                if abs(off) > len(self.matrix[0]):
+                    self.matrix = orig
+                    self.pos['x'] = ox
                     break
 
-    def _rotate_matrix(self, direction):
-        n = len(self.matrix);
-        m = len(self.matrix[0])
-        transposed = [[self.matrix[j][i] for j in range(n)] for i in range(m)]
-        self.matrix = [row[::-1] for row in transposed] if direction > 0 else transposed[::-1]
+    def _rot(self, d):
+        n, m = len(self.matrix), len(self.matrix[0])
+        t = [[self.matrix[j][i] for j in range(n)] for i in range(m)]
+        self.matrix = [r[::-1] for r in t] if d > 0 else t[::-1]
 
-    def update(self, delta_time, actions):
+    def update(self, dt, a):
         if self.game_over: return
 
-        if actions.get('left'):
-            if self.move_timer_l <= 0:
+        # Движение влево
+        if a['left']:
+            if self.move_t['l'] <= 0:
                 self.move(-1)
-                self.move_timer_l = self.das_delay
-            self.move_timer_l -= delta_time
-            if self.move_timer_l <= -self.das_repeat:
+                self.move_t['l'] = self.das
+            self.move_t['l'] -= dt
+            if self.move_t['l'] <= -self.rep:
                 self.move(-1)
-                self.move_timer_l = 0
+                self.move_t['l'] = 0
         else:
-            self.move_timer_l = 0
+            self.move_t['l'] = 0
 
-        if actions.get('right'):
-            if self.move_timer_r <= 0:
+        # Движение вправо
+        if a['right']:
+            if self.move_t['r'] <= 0:
                 self.move(1)
-                self.move_timer_r = self.das_delay
-            self.move_timer_r -= delta_time
-            if self.move_timer_r <= -self.das_repeat:
+                self.move_t['r'] = self.das
+            self.move_t['r'] -= dt
+            if self.move_t['r'] <= -self.rep:
                 self.move(1)
-                self.move_timer_r = 0
+                self.move_t['r'] = 0
         else:
-            self.move_timer_r = 0
+            self.move_t['r'] = 0
 
-        if actions.get('rotate') and not self.rotate_lock:
+        # Поворот
+        if a['rotate'] and not self.lock:
             self.rotate(1)
-            self.rotate_lock = True
-        elif not actions.get('rotate'):
-            self.rotate_lock = False
+            self.lock = True
+        elif not a['rotate']:
+            self.lock = False
 
-        spd = self.DROP_FAST if actions.get('down') else self.drop_interval
-        self.drop_counter += delta_time
-        if self.drop_counter >= spd:
-            self.drop_counter = 0
-            self._try_move_down()
+        # Падение
+        spd = 0.05 if a['down'] else self.speed
+        self.drop_t += dt
+        if self.drop_t >= spd:
+            self.drop_t = 0
+            self._fall()
 
-    def _try_move_down(self):
+    def _fall(self):
         self.pos['y'] += 1
         if self.arena.collide(self):
             self.pos['y'] -= 1
-            self._lock_piece()
+            self._lock()
 
-    def _lock_piece(self):
+    def _lock(self):
         self.arena.merge(self)
-        # ✅ Очистка линий и счет теперь обрабатываются в game.py
+        lines = self.arena.sweep()
+        if lines:
+            self.score += lines * 10
+            self.speed = max(0.1, 1.0 - (self.score // 100) * 0.05)
         self.reset()
