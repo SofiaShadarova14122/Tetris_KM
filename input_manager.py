@@ -4,54 +4,50 @@ import arcade
 class InputManager:
     def __init__(self):
         self.keyboard_keys = set()
-        self.bear_state = {1: {}, 2: {}}  # Хранит текущее состояние кнопок мишек
+        self.bear_keys = {1: set(), 2: set()}
 
-    def update(self, physical_key_states: set):
-        self.keyboard_keys = physical_key_states.copy()
+    def clear(self):
+        self.keyboard_keys.clear()
+        self.bear_keys[1].clear()
+        self.bear_keys[2].clear()
+
+    def update(self, physical_keys: set):
+        self.keyboard_keys = physical_keys.copy()
+
+    def handle_bear_input(self, player_num: int, action: str):
+        self.bear_keys[player_num].clear()
+        if action is None: return
+
+        p1_map = {'left': arcade.key.A, 'right': arcade.key.D, 'down': arcade.key.S, 'up': arcade.key.W}
+        p2_map = {'left': arcade.key.LEFT, 'right': arcade.key.RIGHT, 'down': arcade.key.DOWN, 'up': arcade.key.UP}
+        key_map = p1_map if player_num == 1 else p2_map
+
+        if 'left' in action: self.bear_keys[player_num].discard(key_map['right'])
+        if 'right' in action: self.bear_keys[player_num].discard(key_map['left'])
+        if 'down' in action: self.bear_keys[player_num].discard(key_map['up'])
+
+        if 'left' in action: self.bear_keys[player_num].add(key_map['left'])
+        if 'right' in action: self.bear_keys[player_num].add(key_map['right'])
+        if 'down' in action: self.bear_keys[player_num].add(key_map['down'])
+        if action in ['up', 'up_left', 'up_right']:
+            self.bear_keys[player_num].add(key_map['up'])
 
     def get_player1_input(self):
-        merged = self.keyboard_keys.copy()
-        merged.update(self.bear_state[1].values())
+        merged = self.keyboard_keys.union(self.bear_keys[1])
         return {
             'left': arcade.key.A in merged,
             'right': arcade.key.D in merged,
             'up': arcade.key.W in merged,
+            'rotate': arcade.key.W in merged,  # Для Тетриса
             'down': arcade.key.S in merged
         }
 
     def get_player2_input(self):
-        merged = self.keyboard_keys.copy()
-        merged.update(self.bear_state[2].values())
+        merged = self.keyboard_keys.union(self.bear_keys[2])
         return {
             'left': arcade.key.LEFT in merged,
             'right': arcade.key.RIGHT in merged,
             'up': arcade.key.UP in merged,
+            'rotate': arcade.key.UP in merged,  # Для Тетриса
             'down': arcade.key.DOWN in merged
         }
-
-    def handle_bear_input(self, player_num, action):
-        """Обновляет состояние кнопок для конкретного мишки"""
-        keys_map = {
-            'left':   arcade.key.A if player_num == 1 else arcade.key.LEFT,
-            'right':  arcade.key.D if player_num == 1 else arcade.key.RIGHT,
-            'down':   arcade.key.S if player_num == 1 else arcade.key.DOWN,
-            'up':     arcade.key.W if player_num == 1 else arcade.key.UP,
-        }
-
-        if action is None:
-            # Отпускание всех кнопок для этого игрока
-            self.bear_state[player_num].clear()
-        else:
-            # Сбрасываем конфликтующие направления
-            if 'left' in action: self.bear_state[player_num].pop('right', None)
-            if 'right' in action: self.bear_state[player_num].pop('left', None)
-            if 'down' in action: self.bear_state[player_num].pop('up', None)
-
-            # Добавляем активные
-            if 'left' in action: self.bear_state[player_num]['left'] = keys_map['left']
-            if 'right' in action: self.bear_state[player_num]['right'] = keys_map['right']
-            if 'down' in action: self.bear_state[player_num]['down'] = keys_map['down']
-            if action in ['up', 'up_left', 'up_right']:
-                self.bear_state[player_num]['up'] = keys_map['up']
-            elif 'up' in self.bear_state[player_num]:
-                del self.bear_state[player_num]['up']

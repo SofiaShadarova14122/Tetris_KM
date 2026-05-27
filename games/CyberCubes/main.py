@@ -10,6 +10,8 @@ class CubesWindow(arcade.Window):
         self.center_window()
         self.bear_client = bear_client
         self.kb = InputManager()
+        self.kb.clear()
+        if self.bear_client: self.bear_client.clear_queue()
         self.game = CyberCubesGame(mode=mode)
         self.pressed_keys = set()
 

@@ -14,6 +14,14 @@ class MainMenu(arcade.Window):
         self.bear_client = bear_client
         self.exit_program = False
         self.show_game_menu = show_game_menu or (bear_client is not None)
+
+        if self.bear_client and not self.bear_client.is_running:
+            print("🔄 Переподключение к мишкам...")
+            self.bear_client.start()
+
+        self.input_menu = SerialMenu(800, 600)
+        self.state = "input"
+        self.game_folders = []
         self.input_menu = SerialMenu(800, 600)
         self.state = "input"
         self.game_folders = []
