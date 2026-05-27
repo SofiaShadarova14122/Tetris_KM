@@ -9,8 +9,7 @@ class SerialMenu:
         self.s1, self.s2 = "", ""
         self.active = 1
         self.cursor = True;
-        self.t = 0
-        # Кнопки: {'x': left, 'y': bottom, 'w': width, 'h': height}
+        self.t = 0  # self.t — это таймер курсора, не путать с параметром text
         self.btn = {'x': 300, 'y': 180, 'w': 200, 'h': 50}
         self.skip = {'x': 300, 'y': 120, 'w': 200, 'h': 40}
 
@@ -36,7 +35,7 @@ class SerialMenu:
         txt2 = (self.s2 if self.s2 else "Игрок 2") + ("|" if self.active == 2 and self.cursor else "")
         Config.draw_text(f"Игрок 2: {txt2}", 260, 300, (0, 0, 0), 16, anchor_y="center")
 
-        # ✅ ИСПРАВЛЕНО: Кнопка "Подключить" - явно вычисляем координаты
+        # Кнопка "Подключить"
         btn_l = self.btn['x']
         btn_r = self.btn['x'] + self.btn['w']
         btn_b = self.btn['y']
@@ -44,7 +43,7 @@ class SerialMenu:
         arcade.draw_lrbt_rectangle_filled(btn_l, btn_r, btn_b, btn_t, (100, 200, 100))
         Config.draw_text("Подключить", 400, 205, (255, 255, 255), 18, anchor_x="center", anchor_y="center")
 
-        # ✅ ИСПРАВЛЕНО: Кнопка "Пропустить"
+        # Кнопка "Пропустить"
         skip_l = self.skip['x']
         skip_r = self.skip['x'] + self.skip['w']
         skip_b = self.skip['y']
@@ -52,11 +51,12 @@ class SerialMenu:
         arcade.draw_lrbt_rectangle_filled(skip_l, skip_r, skip_b, skip_t, (150, 150, 200))
         Config.draw_text("Пропустить", 400, 140, (255, 255, 255), 16, anchor_x="center", anchor_y="center")
 
+    # ✅ ИСПРАВЛЕНО: параметр называется text, а не t
     def on_text(self, text):
         if self.active == 1:
-            self.s1 += t
+            self.s1 += text  # ✅ Используем text вместо t
         else:
-            self.s2 += t
+            self.s2 += text  # ✅ Используем text вместо t
 
     def on_key(self, k, _):
         if k == arcade.key.TAB:
@@ -71,24 +71,15 @@ class SerialMenu:
         return None
 
     def on_mouse(self, x, y):
-        # Поля ввода
         if 250 <= x <= 550 and 350 <= y <= 390:
-            self.active = 1; return None
+            self.active = 1
+            return None
         elif 250 <= x <= 550 and 280 <= y <= 320:
-            self.active = 2; return None
-
-        # ✅ Кнопка "Подключить" - проверяем попадание по вычисленным координатам
-        btn_l = self.btn['x']
-        btn_r = self.btn['x'] + self.btn['w']
-        btn_b = self.btn['y']
-        btn_t = self.btn['y'] + self.btn['h']
-        if btn_l <= x <= btn_r and btn_b <= y <= btn_t: return "connect"
-
-        # ✅ Кнопка "Пропустить"
-        skip_l = self.skip['x']
-        skip_r = self.skip['x'] + self.skip['w']
-        skip_b = self.skip['y']
-        skip_t = self.skip['y'] + self.skip['h']
-        if skip_l <= x <= skip_r and skip_b <= y <= skip_t: return "skip"
-
+            self.active = 2
+            return None
+        if self.btn['x'] <= x <= self.btn['x'] + self.btn['w'] and self.btn['y'] <= y <= self.btn['y'] + self.btn['h']:
+            return "connect"
+        if self.skip['x'] <= x <= self.skip['x'] + self.skip['w'] and self.skip['y'] <= y <= self.skip['y'] + self.skip[
+            'h']:
+            return "skip"
         return None

@@ -9,12 +9,10 @@ NOTIFY_UUID = "0000fff1-0000-1000-8000-00805f9b34fb"
 
 # Маппинг байтов согласно требованиям
 BEAR1_MAP = {
-    1: 'up', 2: 'left', 3: 'down', 4: 'right',
-    5: 'up_left', 6: 'up_right', 0: None
+    1: 'up', 2: 'left', 3: 'down', 4: 'right', 0: None
 }
 BEAR2_MAP = {
-    11: 'up', 22: 'left', 33: 'down', 44: 'right',
-    55: 'up_left', 66: 'up_right', 0: None
+    11: 'up', 22: 'left', 33: 'down', 44: 'right', 00: None
 }
 
 class CyberBearClient:

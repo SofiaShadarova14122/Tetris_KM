@@ -4,7 +4,6 @@ import os
 import importlib
 from ui.serial_menu import SerialMenu
 from config import Config
-# ✅ ИСПРАВЛЕНИЕ: Правильный импорт клиента
 from cyber_bear_comms.client import CyberBearClient
 
 
@@ -31,6 +30,7 @@ class MainMenu(arcade.Window):
         self.btn_versus = {'x': 250, 'y': 300, 'w': 300, 'h': 50}
         self.btn_coop = {'x': 250, 'y': 230, 'w': 300, 'h': 50}
         self.btn_fishing = {'x': 250, 'y': 160, 'w': 300, 'h': 50}
+        self.btn_pingpong = {'x': 250, 'y': 90, 'w': 300, 'h': 50}  # ✅ Новая кнопка
 
     def on_update(self, dt):
         if self.state == "input" and not self.show_game_menu:
@@ -48,7 +48,7 @@ class MainMenu(arcade.Window):
                 c1 = Config.P1_COLOR if status.get('bear1') else (150, 150, 150)
                 c2 = Config.P2_COLOR if status.get('bear2') else (150, 150, 150)
                 Config.draw_text(f"{'✅' if status.get('bear1') else '❌'} Мишка 1", 400, 460, c1, 16, anchor_x="center")
-                Config.draw_text(f"{'✅' if status.get('bear2') else '❌'} Мишка 2", 400, 430, c2, 16, anchor_x="center")
+                Config.draw_text(f"{'✅' if status.get('bear2') else ''} Мишка 2", 400, 430, c2, 16, anchor_x="center")
             else:
                 Config.draw_text("🎮 Игра на клавиатуре", 400, 450, (100, 100, 100), 16, anchor_x="center")
 
@@ -81,6 +81,14 @@ class MainMenu(arcade.Window):
             Config.draw_text("Рыбалка (Общее поле)", 400, 185, (255, 255, 255), 18, anchor_x="center",
                              anchor_y="center")
 
+            # ✅ Кнопка PingPong
+            arcade.draw_lrbt_rectangle_filled(
+                self.btn_pingpong['x'], self.btn_pingpong['x'] + self.btn_pingpong['w'],
+                self.btn_pingpong['y'], self.btn_pingpong['y'] + self.btn_pingpong['h'],
+                (150, 150, 150)
+            )
+            Config.draw_text("Ping-Pong", 400, 115, (255, 255, 255), 18, anchor_x="center", anchor_y="center")
+
     def on_text(self, text):
         if self.state == "input" and not self.show_game_menu:
             self.input_menu.on_text(text)
@@ -107,6 +115,8 @@ class MainMenu(arcade.Window):
                 self.launch_game(mode='coop')
             elif self._hit_button(self.btn_fishing, x, y):
                 self.launch_game(mode='fishing')
+            elif self._hit_button(self.btn_pingpong, x, y):  # ✅ Обработка клика
+                self.launch_game(mode='pingpong')
 
     def _hit_button(self, btn, x, y):
         return (btn['x'] <= x <= btn['x'] + btn['w'] and
@@ -135,6 +145,10 @@ class MainMenu(arcade.Window):
 
                 if mode == 'fishing':
                     if 'fishing' in norm:
+                        target_folder = folder
+                        break
+                elif mode == 'pingpong':  # ✅ Поиск папки PingPong
+                    if 'pingpong' in norm or 'ping' in norm:
                         target_folder = folder
                         break
                 else:  # versus или coop
