@@ -7,13 +7,10 @@ from bleak import BleakScanner, BleakClient
 SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb"
 NOTIFY_UUID = "0000fff1-0000-1000-8000-00805f9b34fb"
 
-# Маппинг байтов согласно требованиям
-BEAR1_MAP = {
-    1: 'up', 2: 'left', 3: 'down', 4: 'right', 0: None
-}
-BEAR2_MAP = {
-    11: 'up', 22: 'left', 33: 'down', 44: 'right', 00: None
-}
+# ✅ Исправленный маппинг (0 вместо 00 для совместимости)
+BEAR1_MAP = {1: 'up', 2: 'left', 3: 'down', 4: 'right', 0: None}
+BEAR2_MAP = {11: 'up', 22: 'left', 33: 'down', 44: 'right', 0: None}
+
 
 class CyberBearClient:
     def __init__(self, serials=None, max_bears=2):
@@ -25,21 +22,30 @@ class CyberBearClient:
         self._loop = None
         self._stop_event = threading.Event()
         self.is_running = False
+        self._last_sent = {1: None, 2: None}  # Защита от дубликатов
 
     def _notification_callback(self, sender, data):
         if len(data) >= 1:
             byte_val = data[0]
             player_num, action = None, None
+
             if byte_val in BEAR1_MAP:
                 player_num, action = 1, BEAR1_MAP[byte_val]
             elif byte_val in BEAR2_MAP:
                 player_num, action = 2, BEAR2_MAP[byte_val]
+
             if player_num is not None:
-                self.action_queue.put((player_num, action))
+                # ✅ Фильтр дубликатов: отправляем в игру только если состояние изменилось
+                if action != self._last_sent[player_num]:
+                    self._last_sent[player_num] = action
+                    try:
+                        self.action_queue.put_nowait((player_num, action))
+                    except queue.Full:
+                        pass
 
     async def _async_task(self):
         try:
-            print("🔍 Поиск КиберМишек...")
+            print(" Поиск КиберМишек...")
             devices = await BleakScanner.discover(timeout=5.0)
             target_devices = []
             for dev in devices:
@@ -54,18 +60,20 @@ class CyberBearClient:
             if not target_devices:
                 print("⚠️ КиберМишки не найдены.")
                 return
+
             for idx, dev in enumerate(target_devices):
                 bear_num = idx + 1
                 client = BleakClient(dev.address)
                 try:
                     await client.connect()
-                    await client.disconnect()  # CH9141K workaround
+                    await client.disconnect()
                     await client.connect()
                     await client.start_notify(NOTIFY_UUID, self._notification_callback)
                     self.status[f'bear{bear_num}'] = True
                     print(f"🐻 Подключено к мишке {bear_num} ({dev.name})")
                 except Exception as e:
                     print(f"❌ Ошибка подключения мишки {bear_num}: {e}")
+
             print("🎮 Ожидание сигналов от контроллеров...")
             while not self._stop_event.is_set():
                 await asyncio.sleep(0.1)
